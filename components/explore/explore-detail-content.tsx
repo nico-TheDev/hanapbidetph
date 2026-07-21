@@ -1,0 +1,303 @@
+"use client";
+
+import { BadgeCheck, Droplets } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useEffectEvent, useState } from "react";
+
+import {
+  COMMUNITY_VERIFIED_LABEL,
+  MAPS_CTA_LABEL,
+  PHOTO_PLACEHOLDER_LABEL,
+  detectMapsPlatform,
+  toDetailContentView,
+  type DetailContentView,
+  type MapsPlatform,
+} from "@/lib/explore/detail-content";
+import { loadRestroomDetailAction } from "@/lib/explore/load-detail-action";
+import type {
+  NearbyRestroom,
+  RestroomDetail,
+  SiblingRestroom,
+} from "@/lib/restroom-directory/schemas";
+import { cn } from "@/lib/utils";
+
+type ExploreDetailContentProps = {
+  listingId: string;
+  nearby?: NearbyRestroom;
+  distancesAvailable: boolean;
+  onSelectSibling: (siblingId: string) => void;
+  className?: string;
+};
+
+type LoadState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | {
+      status: "ready";
+      detail: RestroomDetail;
+      siblings: SiblingRestroom[];
+      mapsPlatform: MapsPlatform;
+    };
+
+/**
+ * Listing detail body: amenities, trust, photos, siblings, Maps handoff.
+ * Reviews feed and verify/rate/report CTAs are later tickets.
+ */
+export function ExploreDetailContent({
+  listingId,
+  nearby,
+  distancesAvailable,
+  onSelectSibling,
+  className,
+}: ExploreDetailContentProps) {
+  const [state, setState] = useState<LoadState>({ status: "loading" });
+
+  const load = useEffectEvent(async (id: string) => {
+    setState({ status: "loading" });
+    const result = await loadRestroomDetailAction(id);
+    if (!result.ok) {
+      setState({
+        status: "error",
+        message:
+          result.error === "not_found"
+            ? "This listing is no longer available."
+            : "Couldn’t load listing details. Try again.",
+      });
+      return;
+    }
+
+    const mapsPlatform =
+      typeof navigator !== "undefined"
+        ? detectMapsPlatform(navigator.userAgent)
+        : "other";
+
+    setState({
+      status: "ready",
+      detail: result.detail,
+      siblings: result.siblings,
+      mapsPlatform,
+    });
+  });
+
+  useEffect(() => {
+    void load(listingId);
+  }, [listingId]);
+
+  if (state.status === "loading") {
+    return (
+      <p
+        className={cn("text-muted-foreground text-sm", className)}
+        data-explore="detail-loading"
+      >
+        Loading listing…
+      </p>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div
+        className={cn("flex flex-col gap-2", className)}
+        data-explore="detail-error"
+      >
+        <p className="text-destructive text-sm">{state.message}</p>
+        <button
+          type="button"
+          className="text-primary text-sm font-medium underline-offset-2 hover:underline"
+          onClick={() => void load(listingId)}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const view = toDetailContentView({
+    detail: state.detail,
+    siblings: state.siblings,
+    nearby,
+    distancesAvailable,
+    mapsPlatform: state.mapsPlatform,
+  });
+
+  return (
+    <DetailContentBody
+      view={view}
+      onSelectSibling={onSelectSibling}
+      className={className}
+    />
+  );
+}
+
+function DetailContentBody({
+  view,
+  onSelectSibling,
+  className,
+}: {
+  view: DetailContentView;
+  onSelectSibling: (siblingId: string) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn("flex min-h-0 flex-1 flex-col gap-4", className)}
+      data-explore="detail-content"
+      data-listing-id={view.listingId}
+    >
+      {view.showPhotoPlaceholder ? (
+        <div
+          data-explore="detail-photo-placeholder"
+          className="bg-secondary text-muted-foreground flex h-36 items-center justify-center rounded-xl text-sm"
+        >
+          {PHOTO_PLACEHOLDER_LABEL}
+        </div>
+      ) : (
+        <ul
+          data-explore="detail-photo-gallery"
+          className="flex gap-2 overflow-x-auto pb-1"
+        >
+          {view.photos.map((photo) => (
+            <li
+              key={photo.id}
+              className="bg-secondary relative h-36 w-44 shrink-0 overflow-hidden rounded-xl"
+            >
+              {/* Seed photos are remote Supabase URLs; unoptimized avoids remotePatterns setup. */}
+              <Image
+                src={photo.publicUrl}
+                alt=""
+                fill
+                unoptimized
+                className="object-cover"
+                sizes="176px"
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex flex-col gap-1">
+        <h2 className="font-heading text-lg font-bold tracking-tight">
+          {view.establishmentName}
+        </h2>
+        {view.formattedAddress ? (
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {view.formattedAddress}
+          </p>
+        ) : null}
+        {view.locationLine ? (
+          <p
+            className="text-foreground text-sm font-medium"
+            data-explore="detail-location-line"
+          >
+            {view.locationLine}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        {view.distanceLabel ? (
+          <span
+            data-explore="detail-distance"
+            className="text-muted-foreground font-medium tabular-nums"
+          >
+            {view.distanceLabel}
+          </span>
+        ) : null}
+        {view.communityVerified ? (
+          <span
+            data-explore="detail-verified-badge"
+            className="text-primary inline-flex items-center gap-1 text-sm font-medium"
+          >
+            <BadgeCheck className="size-4 shrink-0" aria-hidden />
+            {COMMUNITY_VERIFIED_LABEL}
+          </span>
+        ) : (
+          <span
+            data-explore="detail-unverified"
+            className="text-muted-foreground text-sm"
+          >
+            {view.trustLabel}
+          </span>
+        )}
+        {view.ratingLabel ? (
+          <span
+            data-explore="detail-rating"
+            className="text-foreground text-sm font-medium tabular-nums"
+          >
+            {view.ratingLabel}
+          </span>
+        ) : null}
+      </div>
+
+      <ul
+        data-explore="detail-amenities"
+        className="flex flex-wrap gap-2"
+        aria-label="Amenities"
+      >
+        {view.amenityChips.map((chip) => (
+          <li
+            key={chip.id}
+            data-amenity={chip.id}
+            className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-xs font-medium"
+          >
+            {chip.label}
+          </li>
+        ))}
+      </ul>
+
+      <a
+        href={view.mapsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-explore="detail-maps-cta"
+        className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-gradient-to-r from-[#006767] to-[#008282] text-sm font-semibold text-white shadow-[0_1px_2px_rgb(45_49_50/0.08)] transition-opacity hover:opacity-95"
+      >
+        {MAPS_CTA_LABEL}
+      </a>
+
+      {view.siblings.length > 0 ? (
+        <section data-explore="detail-siblings" className="flex flex-col gap-2">
+          <h3 className="font-heading text-sm font-semibold tracking-tight">
+            Other restrooms here
+          </h3>
+          <ul className="flex flex-col gap-1">
+            {view.siblings.map((sibling) => (
+              <li key={sibling.id}>
+                <button
+                  type="button"
+                  data-explore="detail-sibling"
+                  data-sibling-id={sibling.id}
+                  className="hover:bg-secondary/70 flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-colors"
+                  onClick={() => onSelectSibling(sibling.id)}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="font-heading block text-sm font-semibold">
+                      {sibling.title}
+                    </span>
+                    {sibling.ratingLabel ? (
+                      <span className="text-muted-foreground text-xs tabular-nums">
+                        {sibling.ratingLabel}
+                      </span>
+                    ) : null}
+                  </span>
+                  {sibling.hasBidet ? (
+                    <Droplets
+                      className="text-primary size-3.5 shrink-0"
+                      aria-label="Has bidet"
+                    />
+                  ) : null}
+                  {sibling.communityVerified ? (
+                    <BadgeCheck
+                      className="text-primary size-3.5 shrink-0"
+                      aria-label="Community verified"
+                    />
+                  ) : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </div>
+  );
+}

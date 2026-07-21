@@ -4,10 +4,10 @@
 
 **Blocked by:** 29 — Listing detail shell (mobile bottom sheet + desktop panel); 07 — `getRestroom` detail + `listSiblings`
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] All amenity fields and trust signals render correctly
-- [ ] Distance shown when user location is available
-- [ ] Community verified badge appears at ≥3 verifies
-- [ ] Sibling restrooms listed with links to switch detail
-- [ ] Maps handoff opens external navigation app with correct coordinates
+- [x] All amenity fields and trust signals render correctly
+- [x] Distance shown when user location is available
+- [x] Community verified badge appears at ≥3 verifies
+- [x] Sibling restrooms listed with links to switch detail
+- [x] Maps handoff opens external navigation app with correct coordinates

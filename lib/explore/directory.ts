@@ -1,14 +1,14 @@
 import { createRestroomDirectory } from "@/lib/restroom-directory";
 import { createSessionAuthPort } from "@/lib/restroom-directory/adapters/session-auth";
 import { createSupabasePostgres } from "@/lib/restroom-directory/adapters/supabase-postgres";
+import { createSupabaseStorage } from "@/lib/restroom-directory/adapters/supabase-storage";
 import { InMemoryGeolocation } from "@/lib/restroom-directory/fakes/in-memory-geolocation";
 import { InMemoryPlaces } from "@/lib/restroom-directory/fakes/in-memory-places";
-import { InMemoryStorage } from "@/lib/restroom-directory/fakes/in-memory-storage";
 import type { RestroomDirectory } from "@/lib/restroom-directory/restroom-directory";
 
 let override: RestroomDirectory | null = null;
 
-/** Test-only seam so Explore nearby loading can inject in-memory adapters. */
+/** Test-only seam so Explore nearby / detail loading can inject in-memory adapters. */
 export function setExploreDirectoryOverride(
   directory: RestroomDirectory | null,
 ): void {
@@ -16,8 +16,8 @@ export function setExploreDirectoryOverride(
 }
 
 /**
- * Explore directory: session AuthPort + Supabase Postgres for `listNearby`.
- * Places/storage/geolocation unused by nearby pins.
+ * Explore directory: session AuthPort + Supabase Postgres for `listNearby` /
+ * `getRestroom` / `listSiblings`. Storage builds public seed-photo URLs.
  */
 export async function getExploreDirectory(): Promise<RestroomDirectory> {
   if (override) {
@@ -28,7 +28,7 @@ export async function getExploreDirectory(): Promise<RestroomDirectory> {
     auth: createSessionAuthPort(),
     places: new InMemoryPlaces(),
     postgres: createSupabasePostgres(),
-    storage: new InMemoryStorage(),
+    storage: createSupabaseStorage(),
     geolocation: new InMemoryGeolocation(),
   });
 }

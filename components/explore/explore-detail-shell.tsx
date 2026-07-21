@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { ExploreDetailContent } from "@/components/explore/explore-detail-content";
 import { useExploreSession } from "@/lib/explore/explore-session";
 import {
   DETAIL_SHEET_HANDLE,
@@ -30,18 +31,22 @@ type ExploreDetailShellProps = {
 };
 
 /**
- * Stub listing detail shell (ticket 29).
+ * Listing detail shell (ticket 29) with content from getRestroom (ticket 30).
  * Mobile: peek → half → expanded bottom sheet. Desktop: sidebar panel.
- * Amenity content / Maps CTA land in ticket 30.
  */
 export function ExploreDetailShell({
   variant,
   className,
 }: ExploreDetailShellProps) {
-  const { selectedId, setSelectedId, listings } = useExploreSession();
+  const {
+    selectedId,
+    setSelectedId,
+    listings,
+    distancesAvailable,
+  } = useExploreSession();
   const [snap, setSnap] = useState<DetailSheetSnap>("peek");
   const view = resolveDetailShellView(selectedId, snap);
-  const listing = listings.find((row) => row.id === selectedId);
+  const nearby = listings.find((row) => row.id === selectedId);
 
   const onSelectedIdChange = useEffectEvent((id: string | null) => {
     if (id) {
@@ -69,11 +74,8 @@ export function ExploreDetailShell({
     return null;
   }
 
-  const title = listing?.name ?? "Restroom";
-  const stub = (
-    <DetailShellStub
-      listingId={selectedId}
-      title={title}
+  const body = (
+    <DetailShellFrame
       onClose={close}
       expandControl={
         variant === "mobile" ? (
@@ -91,7 +93,14 @@ export function ExploreDetailShell({
           />
         ) : null
       }
-    />
+    >
+      <ExploreDetailContent
+        listingId={selectedId}
+        nearby={nearby}
+        distancesAvailable={distancesAvailable}
+        onSelectSibling={(siblingId) => setSelectedId(siblingId)}
+      />
+    </DetailShellFrame>
   );
 
   if (variant === "desktop") {
@@ -103,7 +112,7 @@ export function ExploreDetailShell({
         data-listing-id={selectedId}
         className={cn("flex min-h-0 flex-1 flex-col", className)}
       >
-        {stub}
+        {body}
       </section>
     );
   }
@@ -116,36 +125,24 @@ export function ExploreDetailShell({
       onClose={close}
       className={className}
     >
-      {stub}
+      {body}
     </MobileDetailSheet>
   );
 }
 
-function DetailShellStub({
-  listingId,
-  title,
+function DetailShellFrame({
   onClose,
   expandControl,
+  children,
 }: {
-  listingId: string;
-  title: string;
   onClose: () => void;
   expandControl: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-4 pt-1">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="font-heading text-lg font-bold tracking-tight">
-            {title}
-          </h2>
-          <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-            Listing details, amenities, and Maps directions land next.
-          </p>
-          <p className="text-muted-foreground mt-2 text-xs" data-listing-id={listingId}>
-            Listing id: {listingId}
-          </p>
-        </div>
+      <div className="flex items-start justify-end gap-3">
+        {expandControl}
         <button
           type="button"
           data-explore="detail-close"
@@ -156,7 +153,7 @@ function DetailShellStub({
           <X className="size-5" aria-hidden />
         </button>
       </div>
-      {expandControl}
+      {children}
     </div>
   );
 }
@@ -171,7 +168,7 @@ function MobileExpandControls({
   onCollapse: () => void;
 }) {
   return (
-    <div className="flex gap-2">
+    <div className="mr-auto flex gap-2">
       {snap !== "expanded" ? (
         <button
           type="button"

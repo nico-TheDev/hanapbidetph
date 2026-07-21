@@ -1,7 +1,7 @@
 /**
  * Listing detail shell contract (ticket 29).
  * Mobile: bottom sheet peek → half → expanded. Desktop: sidebar panel.
- * Full listing content lands in ticket 30.
+ * Listing content / Maps CTA: ticket 30 (`detail-content.ts`).
  */
 
 export type DetailSheetSnap = "peek" | "half" | "expanded";
