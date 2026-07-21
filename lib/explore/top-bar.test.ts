@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  EXPLORE_FILTER_CHIPS,
+  FILTER_CHIP_SELECTED_CLASS,
+  FILTER_CHIP_UNSELECTED_CLASS,
+} from "./filters";
 import { RADIUS_SELECTOR_OPTIONS } from "./radius";
 import {
   EXPLORE_TOP_BAR_BRAND,
@@ -26,7 +31,7 @@ describe("Explore top bar layout contract", () => {
     expect(EXPLORE_TOP_BAR_BRAND).toBe("HanapBidet PH");
   });
 
-  it("reserves placeholder slots for radius, filters, and theme toggle", () => {
+  it("reserves slots for radius, filters, and theme toggle", () => {
     expect(EXPLORE_TOP_BAR_SLOTS).toEqual(["radius", "filters", "theme"]);
   });
 
@@ -37,6 +42,17 @@ describe("Explore top bar layout contract", () => {
       { valueMeters: 2000, label: "2 km" },
       { valueMeters: 5000, label: "5 km" },
     ]);
+  });
+
+  it("wires filter slot chips with Soft Aqua / teal selected styles", () => {
+    expect(EXPLORE_FILTER_CHIPS.map((chip) => chip.idleLabel)).toEqual([
+      "Has bidet",
+      "Free/Paid",
+      "Community verified only",
+      "Public/Needs patronage",
+    ]);
+    expect(FILTER_CHIP_UNSELECTED_CLASS).toContain("bg-secondary");
+    expect(FILTER_CHIP_SELECTED_CLASS).toContain("bg-primary");
   });
 
   it("uses glassmorphic chrome (backdrop blur + soft shadow) over the map", () => {

@@ -4,9 +4,9 @@
 
 **Blocked by:** 24 — Map pins from `listNearby` (bidet / standard / unverified)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Four filter chips render with correct selected/unselected styling
-- [ ] Chips scroll horizontally on mobile without breaking layout
-- [ ] Active filters passed to `listNearby` and update pins
-- [ ] Multiple filters can be active simultaneously
+- [x] Four filter chips render with correct selected/unselected styling
+- [x] Chips scroll horizontally on mobile without breaking layout
+- [x] Active filters passed to `listNearby` and update pins
+- [x] Multiple filters can be active simultaneously

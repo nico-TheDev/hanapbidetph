@@ -1,18 +1,18 @@
 "use client";
 
+import { ExploreFilterChips } from "@/components/explore/explore-filter-chips";
 import { ExploreRadiusSelector } from "@/components/explore/explore-radius-selector";
 import { useOptionalExploreSession } from "@/lib/explore/explore-session";
 import {
   EXPLORE_TOP_BAR_BRAND,
   EXPLORE_TOP_BAR_GLASS_CLASS,
   EXPLORE_TOP_BAR_SAFE_AREA_CLASS,
-  EXPLORE_TOP_BAR_SLOTS,
 } from "@/lib/explore/top-bar";
 import { cn } from "@/lib/utils";
 
 /**
  * Compact glass top bar over the Explore map.
- * Radius is wired to `listNearby`; filters / theme remain placeholders.
+ * Radius + filter chips are wired to `listNearby`; theme remains a placeholder.
  */
 export function ExploreTopBar() {
   const session = useOptionalExploreSession();
@@ -38,30 +38,33 @@ export function ExploreTopBar() {
 
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
           {session ? (
-            <ExploreRadiusSelector
-              valueMeters={session.radiusMeters}
-              onChange={session.setRadiusMeters}
-            />
+            <>
+              <ExploreRadiusSelector
+                valueMeters={session.radiusMeters}
+                onChange={session.setRadiusMeters}
+              />
+              <ExploreFilterChips
+                filters={session.filters}
+                onToggle={session.toggleFilter}
+              />
+            </>
           ) : (
-            <div
-              aria-hidden
-              className="bg-secondary/80 text-muted-foreground h-8 shrink-0 rounded-full px-3 text-[11px] leading-8 font-medium"
-              data-slot="radius"
-            >
-              Radius
-            </div>
-          )}
-          {EXPLORE_TOP_BAR_SLOTS.filter((slot) => slot === "filters").map(
-            (slot) => (
+            <>
               <div
-                key={slot}
                 aria-hidden
                 className="bg-secondary/80 text-muted-foreground h-8 shrink-0 rounded-full px-3 text-[11px] leading-8 font-medium"
-                data-slot={slot}
+                data-slot="radius"
+              >
+                Radius
+              </div>
+              <div
+                aria-hidden
+                className="bg-secondary/80 text-muted-foreground h-8 shrink-0 rounded-full px-3 text-[11px] leading-8 font-medium"
+                data-slot="filters"
               >
                 Filters
               </div>
-            ),
+            </>
           )}
         </div>
 

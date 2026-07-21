@@ -8,7 +8,7 @@ Phase 6 — End-user shell
 
 ## Current Goal
 
-26 — Filter chips wired to `listNearby`
+27 — Desktop sidebar list (distance-sorted)
 
 ## Completed
 
@@ -38,14 +38,15 @@ Phase 6 — End-user shell
 - 23 — Google Map canvas + geolocation + Metro Manila fallback
 - 24 — Map pins from `listNearby` (bidet / standard / unverified)
 - 25 — Radius selector wired to `listNearby`
+- 26 — Filter chips wired to `listNearby`
 
 ## In Progress
 
-_(none)_
+- 27 — Desktop sidebar list (distance-sorted)
 
 ## Next Up
 
-- 26 — Filter chips wired to `listNearby`
+- 28 — Explore empty states (no pins / filters hide all / outside coverage)
 
 ## Open Questions
 
@@ -77,6 +78,7 @@ _(none)_
 - Explore map canvas: `@vis.gl/react-google-maps` full-bleed under top bar; `BrowserGeolocation` adapter; denied/unavailable → `NEXT_PUBLIC_DEFAULT_MAP_CENTER_*` + enable-location banner (`distancesAvailable: false`); outside `NEXT_PUBLIC_LAUNCH_GEO` → coming-soon + Browse Metro Manila CTA
 - Explore map pins: `listNearby` → AdvancedMarker HTML pins; bidet Fresh Teal `#006767`, standard charcoal `#4f5e67`, Soft Aqua dashed overlay when unverified; tap selects (preview); Supabase `findActiveRestroomsNear` haversine stand-in for soft-launch scale; default radius 1 km
 - Explore radius: top-bar selector steps 0.5 / 1 / 2 / 5 km (default 1 km); `ExploreSession` shares radius + listings with map pins and sidebar rows; distance labels gated on `distancesAvailable`
+- Explore filters: four Soft Aqua / teal chips (Has bidet, Free/Paid cycle, Community verified only, Public/Needs patronage cycle); multi-select → `listNearby` filters; horizontal scroll on mobile; session shares filters with map refetch
 
 ## Session Notes
 
@@ -105,3 +107,4 @@ _(none)_
 - Ticket 23 done: Explore Google Map canvas via `@vis.gl/react-google-maps` + `BrowserGeolocation`; Metro Manila fallback + enable-location banner; outside launch-geo coming-soon + Browse Metro Manila; Vitest covers `resolveMapViewState` / launch bounds / env / geolocation adapter (no live Maps API).
 - Ticket 24 done: Explore pins from `listNearby` (teal / charcoal / unverified dashed overlay + selected preview); `loadNearbyRestroomsAction` + Supabase nearby adapter; Vitest covers pin appearance, selection sync, and fake `listNearby` → pin models (no live Maps API).
 - Ticket 25 done: Explore top-bar radius selector (0.5 / 1 / 2 / 5 km, default 1 km) refetches `listNearby` and refreshes pins + sidebar rows; distance labels only when location known; Vitest covers steps, distance formatting, and radius widen → farther listings.
+- Ticket 26 done: Explore filter chips (Has bidet, Free/Paid cycle, Community verified only, Public/Needs patronage cycle) Soft Aqua / teal styling, horizontal scroll, multi-select → `listNearby` + pin refresh via `ExploreSession`; Vitest covers chip toggle/cycle → filters and filtered loadNearby pins.

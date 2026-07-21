@@ -154,3 +154,70 @@ describe("25 — radius change refetches listNearby", () => {
     ]);
   });
 });
+
+describe("26 — filter chips wired to listNearby", () => {
+  it("passes active filters to listNearby and updates pin set", async () => {
+    const postgres = new InMemoryPostgres();
+    postgres.seedListings([
+      {
+        id: ID.bidet,
+        establishmentId: "11111111-1111-4111-8111-111111111111",
+        name: "Bidet free public verified",
+        lat: ORIGIN.lat,
+        lng: ORIGIN.lng,
+        bidetType: "manual_spray",
+        accessCost: "free",
+        accessScope: "public",
+        verifyCount: 3,
+        status: "active",
+      },
+      {
+        id: ID.standardUnverified,
+        establishmentId: "22222222-2222-4222-8222-222222222222",
+        name: "Paid patronage unverified",
+        lat: ORIGIN.lat + 0.001,
+        lng: ORIGIN.lng,
+        bidetType: "none",
+        accessCost: "paid",
+        accessScope: "needs_patronage",
+        verifyCount: 0,
+        status: "active",
+      },
+    ]);
+
+    setExploreDirectoryOverride(
+      createRestroomDirectory({
+        auth: new InMemoryAuth(),
+        places: new InMemoryPlaces(),
+        postgres,
+        storage: new InMemoryStorage(),
+        geolocation: new InMemoryGeolocation(),
+      }),
+    );
+
+    const unfiltered = await loadNearbyRestroomsAction({
+      ...ORIGIN,
+      radiusMeters: 1000,
+    });
+    expect(unfiltered.map((r) => r.id).sort()).toEqual(
+      [ID.bidet, ID.standardUnverified].sort(),
+    );
+
+    const filtered = await loadNearbyRestroomsAction({
+      ...ORIGIN,
+      radiusMeters: 1000,
+      filters: {
+        hasBidet: true,
+        accessCost: "free",
+        accessScope: "public",
+        communityVerified: true,
+      },
+    });
+    expect(filtered.map((r) => r.id)).toEqual([ID.bidet]);
+
+    const pins = toMapPinModels(filtered, null);
+    expect(pins).toHaveLength(1);
+    expect(pins[0].id).toBe(ID.bidet);
+    expect(pins[0].appearance.fill).toBe(PIN_BIDET_FILL);
+  });
+});
