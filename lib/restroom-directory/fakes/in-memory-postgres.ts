@@ -4,6 +4,8 @@ import type {
   CreateRestroomPhotoInput,
   CreateReviewPhotoInput,
   FindActiveNearParams,
+  InsertReportInput,
+  InsertReportOutcome,
   InsertVerifyInput,
   InsertVerifyOutcome,
   PostgresPort,
@@ -24,6 +26,8 @@ import type {
   BidetType,
   Establishment,
   NearbyRestroom,
+  ReportReason,
+  ReportStatus,
   RestroomStatus,
   SiblingRestroom,
 } from "../schemas";
@@ -118,6 +122,16 @@ export type SeedVerify = {
   createdAt: string;
 };
 
+export type SeedReport = {
+  id: string;
+  restroomId: string;
+  reporterId: string;
+  reason: ReportReason;
+  details: string | null;
+  status: ReportStatus;
+  createdAt: string;
+};
+
 function haversineMeters(
   a: { lat: number; lng: number },
   b: { lat: number; lng: number },
@@ -204,6 +218,7 @@ export class InMemoryPostgres implements PostgresPort {
   private reviews: SeedReview[] = [];
   private reviewPhotos: SeedReviewPhoto[] = [];
   private verifies: SeedVerify[] = [];
+  private reports: SeedReport[] = [];
 
   seedListings(listings: SeedNearbyListing[]): void {
     this.listings = listings;
@@ -235,6 +250,15 @@ export class InMemoryPostgres implements PostgresPort {
 
   seedVerifies(verifies: SeedVerify[]): void {
     this.verifies = verifies;
+  }
+
+  seedReports(reports: SeedReport[]): void {
+    this.reports = reports;
+  }
+
+  /** Test helper: open reports for a restroom. */
+  reportsFor(restroomId: string): SeedReport[] {
+    return this.reports.filter((r) => r.restroomId === restroomId);
   }
 
   /** Test helper: how many restroom rows exist (detect accidental creates). */
@@ -592,6 +616,45 @@ export class InMemoryPostgres implements PostgresPort {
         photo.removedAt = now;
       }
     }
+  }
+
+  async insertReport(input: InsertReportInput): Promise<InsertReportOutcome> {
+    const restroom = this.restrooms.find((r) => r.id === input.restroomId);
+    if (!restroom || restroom.status === "archived") {
+      return { status: "not_found" };
+    }
+
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    this.reports.push({
+      id,
+      restroomId: input.restroomId,
+      reporterId: input.reporterId,
+      reason: input.reason,
+      details: input.details,
+      status: "open",
+      createdAt: now,
+    });
+
+    // App logic: every new open report → disputed (DATA_ARCHITECTURE).
+    restroom.status = "disputed";
+    restroom.updatedAt = now;
+
+    const listing = this.listings.find((l) => l.id === input.restroomId);
+    if (listing) {
+      listing.status = "disputed";
+    }
+
+    return {
+      status: "inserted",
+      report: {
+        id,
+        restroomId: input.restroomId,
+        reason: input.reason,
+        details: input.details,
+        createdAt: now,
+      },
+    };
   }
 
   /** Mirrors after_review_change → recompute_restroom_rating. */

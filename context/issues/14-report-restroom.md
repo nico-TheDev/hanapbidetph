@@ -4,10 +4,10 @@
 
 **Blocked by:** 07 — `getRestroom` detail + `listSiblings`; 09 — Return-to-interrupted-flow and auth-gate utility
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Report inserted with reason and optional details
-- [ ] Restroom status becomes `disputed` when report is open
-- [ ] `listNearby` excludes disputed; `getRestroom` returns with `is_disputed: true`
-- [ ] Guest cannot report
-- [ ] Vitest suite covers status transition and map exclusion
+- [x] Report inserted with reason and optional details
+- [x] Restroom status becomes `disputed` when report is open
+- [x] `listNearby` excludes disputed; `getRestroom` returns with `is_disputed: true`
+- [x] Guest cannot report
+- [x] Vitest suite covers status transition and map exclusion

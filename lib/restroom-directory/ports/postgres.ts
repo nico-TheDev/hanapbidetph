@@ -4,6 +4,7 @@ import type {
   BidetType,
   Establishment,
   NearbyRestroom,
+  ReportReason,
   RestroomStatus,
   SiblingRestroom,
 } from "../schemas";
@@ -138,6 +139,30 @@ export type CreateReviewPhotoInput = {
   sortOrder: number;
 };
 
+export type InsertReportInput = {
+  restroomId: string;
+  reporterId: string;
+  reason: ReportReason;
+  details: string | null;
+};
+
+/**
+ * Insert report result. App logic sets restroom status to disputed
+ * on every new open report (DATA_ARCHITECTURE).
+ */
+export type InsertReportOutcome =
+  | {
+      status: "inserted";
+      report: {
+        id: string;
+        restroomId: string;
+        reason: ReportReason;
+        details: string | null;
+        createdAt: string;
+      };
+    }
+  | { status: "not_found" };
+
 /**
  * Postgres / PostGIS persistence adapter port.
  * Ticket 02 keeps this thin; later tickets grow query/mutation methods.
@@ -191,4 +216,10 @@ export interface PostgresPort {
 
   /** Soft-removes published review photos (sets removed_at). */
   softRemoveReviewPhotos(reviewId: string): Promise<void>;
+
+  /**
+   * Inserts an open report and sets restroom status to disputed.
+   * Archived / missing → not_found. Multiple reports per listing allowed.
+   */
+  insertReport(input: InsertReportInput): Promise<InsertReportOutcome>;
 }

@@ -22,6 +22,7 @@ import {
   listNearbyInputSchema,
   listSiblingsInputSchema,
   addRestroomInputSchema,
+  reportRestroomInputSchema,
   searchPlacesInputSchema,
   upsertReviewInputSchema,
   verifyRestroomInputSchema,
@@ -130,7 +131,7 @@ function requireSignedIn(
 /**
  * RestroomDirectory — wires adapter ports.
  * Read ops + searchPlaces / findExistingForPlace / addRestroom /
- * verifyRestroom / upsertReview; remaining write ops later.
+ * verifyRestroom / upsertReview / reportRestroom; remaining write ops later.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}
@@ -398,9 +399,36 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async reportRestroom(
-    _input: ReportRestroomInput,
+    input: ReportRestroomInput,
   ): Promise<Result<Report, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireSignedIn(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = reportRestroomInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const outcome = await this.deps.postgres.insertReport({
+      restroomId: parsed.data.restroomId,
+      reporterId: gated.value.userId,
+      reason: parsed.data.reason,
+      details: parsed.data.details ?? null,
+    });
+
+    if (outcome.status === "not_found") {
+      return err("not_found");
+    }
+
+    return ok({
+      id: outcome.report.id,
+      restroomId: outcome.report.restroomId,
+      reason: outcome.report.reason,
+      details: outcome.report.details,
+      status: "open",
+      createdAt: outcome.report.createdAt,
+    });
   }
 
   async deleteRestroom(

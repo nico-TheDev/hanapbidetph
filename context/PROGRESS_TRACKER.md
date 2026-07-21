@@ -8,7 +8,7 @@ Phase 4 — Write path (user)
 
 ## Current Goal
 
-14 — `reportRestroom`
+15 — Creator edit/delete gates
 
 ## Completed
 
@@ -25,6 +25,7 @@ Phase 4 — Write path (user)
 - 11 — `addRestroom` (establishment upsert by `place_id`, active + unverified listing, ≤3 seed photos)
 - 12 — `verifyRestroom` + community-verified threshold (one verify/user, `verify_count`, community verified at ≥3)
 - 13 — `upsertReview` with photos (one review/user, update-in-place, ≤3 photos, rating aggregates)
+- 14 — `reportRestroom` + disputed status transition (open report → `disputed`; map exclusion; detail `isDisputed`)
 
 ## In Progress
 
@@ -32,7 +33,7 @@ _(none)_
 
 ## Next Up
 
-- 14 — `reportRestroom` + disputed status transition
+- 15 — Creator edit/delete with community-activity gate (`updateRestroom` / `deleteRestroom`)
 
 ## Open Questions
 
@@ -52,6 +53,7 @@ _(none)_
 - `addRestroom` finds-or-creates establishment by `place_id`, inserts active restroom (`verify_count = 0`), uploads ≤3 seed photos to `restroom-photos/{restroom_id}/{photo_id}.webp`, and returns detail; guests get `unauthenticated`
 - `verifyRestroom` inserts one verify per user per listing via PostgresPort `insertVerify` (UNIQUE conflict → `conflict`); increments `verify_count`; `communityVerified` at ≥3; duplicate-add "same CR" path is this op (no new listing); guests get `unauthenticated`
 - `upsertReview` inserts or updates the caller's review (UNIQUE restroom_id + user_id), uploads ≤3 photos to `review-photos/{review_id}/{photo_id}.webp`, recomputes `rating_avg` / `rating_count`; guests get `unauthenticated`
+- `reportRestroom` inserts an open report via PostgresPort `insertReport` and sets restroom `status = 'disputed'` (syncs nearby listing seed); guests get `unauthenticated`; detail remains readable with `isDisputed: true`
 
 ## Session Notes
 
@@ -68,3 +70,4 @@ _(none)_
 - Ticket 11 done: `addRestroom` auth-gated; find-or-create establishment by `place_id`, insert Active + `verify_count = 0`, upload ≤3 seed photos via StoragePort; Vitest covers new place, sibling at existing establishment, photo limit, guest denial.
 - Ticket 12 done: `verifyRestroom` auth-gated; PostgresPort `insertVerify` enforces one verify/user, increments `verify_count`, `communityVerified` at ≥3; duplicate-add same-CR path verifies without creating; Vitest covers uniqueness, threshold, guest denial, archived/missing `not_found`.
 - Ticket 13 done: `upsertReview` auth-gated; one review per user per listing (update-in-place), stars/checkboxes/comment + ≤3 `review-photos`, rating aggregates recomputed; Vitest covers insert, update, uniqueness, newest-first detail, guest denial.
+- Ticket 14 done: `reportRestroom` auth-gated; PostgresPort `insertReport` opens report + sets `disputed`; `listNearby` drops pin, `getRestroom` returns `isDisputed: true`; Vitest covers guest denial, status transition, map exclusion, multi-report.
