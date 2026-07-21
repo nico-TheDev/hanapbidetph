@@ -4,10 +4,10 @@
 
 **Blocked by:** 04 — Restrooms, photos, verifies, reviews, reports tables + RLS + triggers
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Returns restrooms within radius ordered by distance
-- [ ] Excludes restrooms outside radius and disputed listings from default results
-- [ ] All four filter combinations work correctly
-- [ ] Pin-variant classification (bidet, standard, unverified overlay) is computed per listing
-- [ ] Vitest suite covers radius, filters, pin variants, and disputed exclusion
+- [x] Returns restrooms within radius ordered by distance
+- [x] Excludes restrooms outside radius and disputed listings from default results
+- [x] All four filter combinations work correctly
+- [x] Pin-variant classification (bidet, standard, unverified overlay) is computed per listing
+- [x] Vitest suite covers radius, filters, pin variants, and disputed exclusion

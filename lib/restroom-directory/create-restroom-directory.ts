@@ -45,8 +45,8 @@ export type RestroomDirectoryDeps = {
 };
 
 /**
- * Stub RestroomDirectory — wires adapter ports.
- * Operation bodies fill in on later tickets; listNearby is the smoke path.
+ * RestroomDirectory — wires adapter ports.
+ * listNearby is implemented; remaining operations fill in on later tickets.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}

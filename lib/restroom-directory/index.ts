@@ -5,8 +5,16 @@ export {
 export { InMemoryAuth } from "./fakes/in-memory-auth";
 export { InMemoryGeolocation } from "./fakes/in-memory-geolocation";
 export { InMemoryPlaces } from "./fakes/in-memory-places";
-export { InMemoryPostgres } from "./fakes/in-memory-postgres";
+export {
+  InMemoryPostgres,
+  type SeedNearbyListing,
+} from "./fakes/in-memory-postgres";
 export { InMemoryStorage } from "./fakes/in-memory-storage";
+export {
+  classifyPinVariant,
+  hasBidetFromType,
+  isCommunityVerified,
+} from "./pin-variant";
 export type {
   Actor,
   AuthPort,

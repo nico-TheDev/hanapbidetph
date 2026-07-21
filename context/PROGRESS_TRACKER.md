@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-Phase 1 — Data foundation
+Phase 2 — Read path
 
 ## Current Goal
 
-06 — `listNearby` via RestroomDirectory + PostGIS.
+07 — `getRestroom` + `listSiblings` via RestroomDirectory.
 
 ## Completed
 
@@ -17,12 +17,12 @@ Phase 1 — Data foundation
 - 03 — Supabase core schema (PostGIS, enums, profiles, establishments, auth bootstrap trigger)
 - 04 — Restrooms, photos, verifies, reviews, reports tables + RLS + aggregate triggers
 - 05 — Storage buckets (`restroom-photos`, `review-photos`) + storage RLS policies
+- 06 — `listNearby` with radius, filters, pin-variant classification, disputed exclusion
 
 ## In Progress
 
 ## Next Up
 
-- 06 — listNearby (blocked by 04 — cleared)
 - 07 — getRestroom + siblings (blocked by 04 — cleared)
 - 08 — Google auth (blocked by auth ticket prerequisites)
 
@@ -36,6 +36,7 @@ Phase 1 — Data foundation
 - Supabase migrations under `supabase/migrations/`; core schema enables PostGIS, six domain enums, `profiles` + `establishments`, and `on_auth_user_created` profile bootstrap
 - Domain tables migration adds `restrooms` (+ photos/verifies/reviews/reports), RLS (anon read / scoped auth writes / `is_admin` bypass), and triggers for `verify_count` + rating aggregates
 - Storage buckets `restroom-photos` / `review-photos` are public; object paths `{entity_id}/{photo_id}.webp`; SELECT gated to published (`removed_at IS NULL`) + uploader/admin; INSERT scoped to entity ownership; soft-delete via photo-row `removed_at` (no authenticated storage DELETE)
+- `listNearby` uses PostgresPort `findActiveRestroomsNear` (PostGIS `ST_DWithin` pattern); in-memory fake haversine stand-in seeds domain rows, excludes non-`active`, applies filters, and computes `hasBidet` / `communityVerified` / `pinVariant`
 
 ## Session Notes
 
@@ -44,3 +45,4 @@ Phase 1 — Data foundation
 - Ticket 03 done: `supabase/migrations/20260722000000_core_schema.sql` — PostGIS, six enums, profiles (partial `is_admin` index), establishments (`place_id` unique + GIST on generated `location`), `on_auth_user_created` → "Maria S." display name from Google metadata; Vitest contract tests green.
 - Ticket 04 done: `supabase/migrations/20260722000001_domain_tables_rls_triggers.sql` — six tables + indexes/UNIQUEs, RLS policies per auth model, `after_insert_verify` / `after_delete_verify` / `after_review_change`; Vitest contract tests green.
 - Ticket 05 done: `supabase/migrations/20260722000002_storage_buckets.sql` — public `restroom-photos` / `review-photos` buckets (WebP), SELECT for published photos, authenticated INSERT scoped to restroom creator / review author path context, soft-delete via `removed_at`; Vitest contract tests green.
+- Ticket 06 done: `listNearby` Vitest suite (`list-nearby.test.ts`) covers radius ordering, disputed/non-active exclusion, four filters + combo, pin variants (`bidet` / `standard` / `*_unverified`), and 1 km default / 5 km max validation; `InMemoryPostgres.seedListings` + `pin-variant.ts` helpers.
