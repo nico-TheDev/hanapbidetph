@@ -4,10 +4,10 @@
 
 **Blocked by:** 07 — `getRestroom` detail + `listSiblings`; 09 — Return-to-interrupted-flow and auth-gate utility
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] One verify per user per listing enforced (duplicate rejected)
-- [ ] `verify_count` increments; `community_verified` true at ≥3 distinct verifiers
-- [ ] Duplicate-add shortcut records verify instead of creating a new listing
-- [ ] Guest cannot verify
-- [ ] Vitest suite covers uniqueness, threshold, and authz
+- [x] One verify per user per listing enforced (duplicate rejected)
+- [x] `verify_count` increments; `community_verified` true at ≥3 distinct verifiers
+- [x] Duplicate-add shortcut records verify instead of creating a new listing
+- [x] Guest cannot verify
+- [x] Vitest suite covers uniqueness, threshold, and authz

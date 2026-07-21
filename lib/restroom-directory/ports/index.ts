@@ -6,6 +6,8 @@ export type {
   CreateRestroomInput,
   CreateRestroomPhotoInput,
   FindActiveNearParams,
+  InsertVerifyInput,
+  InsertVerifyOutcome,
   PostgresPort,
   RestroomDetailRow,
   ReviewAuthorRow,

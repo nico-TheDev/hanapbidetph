@@ -8,7 +8,7 @@ Phase 4 — Write path (user)
 
 ## Current Goal
 
-12 — `verifyRestroom`
+13 — `upsertReview`
 
 ## Completed
 
@@ -23,6 +23,7 @@ Phase 4 — Write path (user)
 - 09 — Return-to-interrupted-flow and auth-gate utility (`safeReturnPath`, `loginHref`, `oauthCallbackHref`, `resolveAuthGate`/`requireAuth`, `next` through OAuth callback)
 - 10 — `searchPlaces` + `findExistingForPlace` (Places autocomplete via adapter, active restrooms by `place_id`, auth required)
 - 11 — `addRestroom` (establishment upsert by `place_id`, active + unverified listing, ≤3 seed photos)
+- 12 — `verifyRestroom` + community-verified threshold (one verify/user, `verify_count`, community verified at ≥3)
 
 ## In Progress
 
@@ -30,7 +31,7 @@ _(none)_
 
 ## Next Up
 
-- 12 — `verifyRestroom` + community-verified threshold
+- 13 — `upsertReview` with photos
 
 ## Open Questions
 
@@ -48,6 +49,7 @@ _(none)_
 - Auth gate: gated surfaces call `resolveAuthGate` / `requireAuth` with the interrupted path; anonymous → `/login?next=…`; Google OAuth `redirectTo` carries safe `next` to `/auth/callback`; success redirects to that same-origin path (open redirects rejected)
 - `searchPlaces` uses PlacesPort `autocomplete` (not persisted); `findExistingForPlace` uses PostgresPort `findActiveRestroomsByPlaceId`; both require signed-in actor (`unauthenticated` for guests)
 - `addRestroom` finds-or-creates establishment by `place_id`, inserts active restroom (`verify_count = 0`), uploads ≤3 seed photos to `restroom-photos/{restroom_id}/{photo_id}.webp`, and returns detail; guests get `unauthenticated`
+- `verifyRestroom` inserts one verify per user per listing via PostgresPort `insertVerify` (UNIQUE conflict → `conflict`); increments `verify_count`; `communityVerified` at ≥3; duplicate-add "same CR" path is this op (no new listing); guests get `unauthenticated`
 
 ## Session Notes
 
@@ -62,3 +64,4 @@ _(none)_
 - Ticket 09 done: reusable `resolveAuthGate`/`requireAuth` + `loginHref`/`oauthCallbackHref`/`safeReturnPath`; `/login` + OAuth callback preserve `next` end-to-end; signed-in users on `/login` redirect to return path; Vitest covers anonymous redirect, authenticated pass-through, success return, and open-redirect rejection.
 - Ticket 10 done: `searchPlaces` / `findExistingForPlace` auth-gated; PlacesPort autocomplete + Postgres `findActiveRestroomsByPlaceId`; Vitest covers empty Places matches, existing active restrooms (excludes disputed/archived/other places), guest `unauthenticated`, and no persistence on search.
 - Ticket 11 done: `addRestroom` auth-gated; find-or-create establishment by `place_id`, insert Active + `verify_count = 0`, upload ≤3 seed photos via StoragePort; Vitest covers new place, sibling at existing establishment, photo limit, guest denial.
+- Ticket 12 done: `verifyRestroom` auth-gated; PostgresPort `insertVerify` enforces one verify/user, increments `verify_count`, `communityVerified` at ≥3; duplicate-add same-CR path verifies without creating; Vitest covers uniqueness, threshold, guest denial, archived/missing `not_found`.

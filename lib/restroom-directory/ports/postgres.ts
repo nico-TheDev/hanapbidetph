@@ -99,6 +99,20 @@ export type CreateRestroomPhotoInput = {
   sortOrder: number;
 };
 
+export type InsertVerifyInput = {
+  restroomId: string;
+  userId: string;
+};
+
+/**
+ * Insert verify result. Mirrors UNIQUE (restroom_id, user_id) +
+ * after_insert_verify increment of verify_count.
+ */
+export type InsertVerifyOutcome =
+  | { status: "inserted"; verifyCount: number }
+  | { status: "conflict" }
+  | { status: "not_found" };
+
 /**
  * Postgres / PostGIS persistence adapter port.
  * Ticket 02 keeps this thin; later tickets grow query/mutation methods.
@@ -135,4 +149,10 @@ export interface PostgresPort {
   createRestroomPhoto(
     input: CreateRestroomPhotoInput,
   ): Promise<StoredPhotoRow>;
+
+  /**
+   * Inserts one verify per user per listing and increments verify_count.
+   * Archived / missing → not_found; duplicate (restroom_id, user_id) → conflict.
+   */
+  insertVerify(input: InsertVerifyInput): Promise<InsertVerifyOutcome>;
 }

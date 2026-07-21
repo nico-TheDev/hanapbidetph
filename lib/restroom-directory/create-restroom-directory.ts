@@ -23,6 +23,7 @@ import {
   listSiblingsInputSchema,
   addRestroomInputSchema,
   searchPlacesInputSchema,
+  verifyRestroomInputSchema,
   type AddRestroomInput,
   type AdminMergeInput,
   type AdminRemovePhotoInput,
@@ -127,7 +128,8 @@ function requireSignedIn(
 
 /**
  * RestroomDirectory — wires adapter ports.
- * Read ops + searchPlaces / findExistingForPlace / addRestroom; remaining write ops later.
+ * Read ops + searchPlaces / findExistingForPlace / addRestroom / verifyRestroom;
+ * remaining write ops later.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}
@@ -294,9 +296,34 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async verifyRestroom(
-    _input: VerifyRestroomInput,
+    input: VerifyRestroomInput,
   ): Promise<Result<VerifyRestroomResult, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireSignedIn(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = verifyRestroomInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const outcome = await this.deps.postgres.insertVerify({
+      restroomId: parsed.data.restroomId,
+      userId: gated.value.userId,
+    });
+
+    if (outcome.status === "not_found") {
+      return err("not_found");
+    }
+    if (outcome.status === "conflict") {
+      return err("conflict");
+    }
+
+    return ok({
+      restroomId: parsed.data.restroomId,
+      verifyCount: outcome.verifyCount,
+      communityVerified: isCommunityVerified(outcome.verifyCount),
+    });
   }
 
   async upsertReview(

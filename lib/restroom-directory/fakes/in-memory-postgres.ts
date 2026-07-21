@@ -3,6 +3,8 @@ import type {
   CreateRestroomInput,
   CreateRestroomPhotoInput,
   FindActiveNearParams,
+  InsertVerifyInput,
+  InsertVerifyOutcome,
   PostgresPort,
   RestroomDetailRow,
   ReviewRow,
@@ -106,6 +108,13 @@ export type SeedReviewPhoto = {
   removedAt: string | null;
 };
 
+export type SeedVerify = {
+  id: string;
+  restroomId: string;
+  userId: string;
+  createdAt: string;
+};
+
 function haversineMeters(
   a: { lat: number; lng: number },
   b: { lat: number; lng: number },
@@ -191,6 +200,7 @@ export class InMemoryPostgres implements PostgresPort {
   private restroomPhotos: SeedRestroomPhoto[] = [];
   private reviews: SeedReview[] = [];
   private reviewPhotos: SeedReviewPhoto[] = [];
+  private verifies: SeedVerify[] = [];
 
   seedListings(listings: SeedNearbyListing[]): void {
     this.listings = listings;
@@ -218,6 +228,15 @@ export class InMemoryPostgres implements PostgresPort {
 
   seedReviewPhotos(photos: SeedReviewPhoto[]): void {
     this.reviewPhotos = photos;
+  }
+
+  seedVerifies(verifies: SeedVerify[]): void {
+    this.verifies = verifies;
+  }
+
+  /** Test helper: how many restroom rows exist (detect accidental creates). */
+  restroomCount(): number {
+    return this.restrooms.length;
   }
 
   async findActiveRestroomsNear(
@@ -468,5 +487,38 @@ export class InMemoryPostgres implements PostgresPort {
       storagePath: input.storagePath,
       sortOrder: input.sortOrder,
     };
+  }
+
+  async insertVerify(input: InsertVerifyInput): Promise<InsertVerifyOutcome> {
+    const restroom = this.restrooms.find((r) => r.id === input.restroomId);
+    if (!restroom || restroom.status === "archived") {
+      return { status: "not_found" };
+    }
+
+    const duplicate = this.verifies.some(
+      (v) =>
+        v.restroomId === input.restroomId && v.userId === input.userId,
+    );
+    if (duplicate) {
+      return { status: "conflict" };
+    }
+
+    this.verifies.push({
+      id: crypto.randomUUID(),
+      restroomId: input.restroomId,
+      userId: input.userId,
+      createdAt: new Date().toISOString(),
+    });
+
+    // Mirrors after_insert_verify trigger.
+    restroom.verifyCount += 1;
+    restroom.updatedAt = new Date().toISOString();
+
+    const listing = this.listings.find((l) => l.id === input.restroomId);
+    if (listing) {
+      listing.verifyCount = restroom.verifyCount;
+    }
+
+    return { status: "inserted", verifyCount: restroom.verifyCount };
   }
 }
