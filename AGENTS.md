@@ -13,47 +13,53 @@ This file orients any agent working in this repository.
 
 Use this order unless the task says otherwise.
 
-1. `.scratch/hanapbidet-ph/spec.md`
+1. `context/spec.md`
    - Canonical v1 scope, decisions, and full user stories.
    - Start here for product intent, boundaries, and implementation phases.
 
-2. `.scratch/hanapbidet-ph/PRD.md`
+2. `context/PRD.md`
    - Product framing, launch constraints, and success metrics.
    - Use when validating "what matters" and out-of-scope features.
 
-3. `.scratch/hanapbidet-ph/TRD.md`
+3. `context/TRD.md`
    - Technical stack, architecture constraints, env var names, and backend boundaries.
    - Use before touching infra, auth, APIs, or deployment-related choices.
 
-4. `.scratch/hanapbidet-ph/DATA_ARCHITECTURE.md`
+4. `context/DATA_ARCHITECTURE.md`
    - Database schema, enums, RLS model, storage model, and `RestroomDirectory` API surface.
    - Use for any data contract, authz, migration, or moderation behavior.
 
-5. `.scratch/hanapbidet-ph/APPFLOW.md`
+5. `context/APPFLOW.md`
    - Route-by-route UX behavior and navigation flows (mobile vs desktop vs admin).
    - Use when implementing pages, auth redirects, and empty/error states.
 
-6. `.scratch/hanapbidet-ph/UI_DESIGN.md`
+6. `context/UI_DESIGN.md`
    - UX style direction and interaction conventions for v1.
    - Use for visual consistency, not for changing product logic.
 
-7. `.scratch/hanapbidet-ph/design/DESIGN.md`
+7. `context/design/DESIGN.md`
    - Concrete token values (colors, typography, radii, etc).
    - Use as the source of truth for design token wiring.
 
-8. `.scratch/hanapbidet-ph/issues/*.md`
+8. `context/issues/*.md`
    - Execution queue split into tracer-bullet tickets with blockers.
    - Use to select the next implementable ticket on the frontier.
+
+9. `context/PROGRESS_TRACKER.md`
+   - Living project progress log (phase, goal, completed, in progress, next up).
+   - Use as the basis for project status; update it for every ticket worked.
 
 ## Ticket-First Workflow
 
 When implementing:
 
-1. Pick a ticket in `.scratch/hanapbidet-ph/issues/` whose blockers are complete.
+1. Pick a ticket in `context/issues/` whose blockers are complete.
 2. Re-read `spec.md` + the ticket + relevant supporting docs above.
-3. Implement only the end-to-end behavior promised by that ticket.
-4. Verify with tests/lints relevant to changed behavior.
-5. Update progress in the ticket or adjacent planning docs if requested.
+3. Mark the ticket in progress in `context/PROGRESS_TRACKER.md` before coding.
+4. Implement only the end-to-end behavior promised by that ticket.
+5. Run the relevant tests (and lints) for the changed behavior and confirm they pass.
+6. Update `context/PROGRESS_TRACKER.md` for the ticket (move to Completed, refresh Current Goal / Next Up). This file is the project progress basis — never skip it.
+7. Always commit after the ticket is implemented, the tracker is updated, and tests are passing. Do not commit if tests fail.
 
 ## Domain Vocabulary (Do Not Drift)
 
@@ -92,4 +98,6 @@ If conflict remains, ask before implementing.
 - Avoid broad refactors unless a ticket explicitly calls for one.
 - Prefer small, demoable increments that match ticket acceptance criteria.
 - Preserve existing terminology and route structure from app-flow docs.
-- Treat `.scratch/hanapbidet-ph/` as the planning source of truth for this repo.
+- Treat `context/` as the planning source of truth for this repo.
+- Treat `PROGRESS_TRACKER.md` as the project progress basis; update it for every ticket started and finished.
+- After each ticket: update the progress tracker, confirm tests pass, then commit. Never leave a finished ticket uncommitted, and never commit with failing tests.

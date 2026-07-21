@@ -294,4 +294,4 @@ Greenfield repository — RestroomDirectory tests are the first and primary prio
 - Cold start is a product risk; seeding is intentional, not polish.
 - Indoor GPS is unreliable; establishment coordinates + floor/area labels are the honest model.
 - After this spec: split into tracer-bullet tickets via `/to-tickets`, then implement per ticket.
-- Issue tracker: local markdown under `.scratch/hanapbidet-ph/` until `/setup-matt-pocock-skills` configures GitHub Issues.
+- Issue tracker: local markdown under `context/` until `/setup-matt-pocock-skills` configures GitHub Issues.
