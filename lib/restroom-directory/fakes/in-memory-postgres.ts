@@ -2,6 +2,7 @@ import type {
   CreateEstablishmentInput,
   CreateRestroomInput,
   CreateRestroomPhotoInput,
+  CreateReviewPhotoInput,
   FindActiveNearParams,
   InsertVerifyInput,
   InsertVerifyOutcome,
@@ -9,6 +10,8 @@ import type {
   RestroomDetailRow,
   ReviewRow,
   StoredPhotoRow,
+  UpsertReviewOutcome,
+  UpsertReviewPortInput,
 } from "../ports/postgres";
 import {
   classifyPinVariant,
@@ -520,5 +523,99 @@ export class InMemoryPostgres implements PostgresPort {
     }
 
     return { status: "inserted", verifyCount: restroom.verifyCount };
+  }
+
+  async upsertReview(
+    input: UpsertReviewPortInput,
+  ): Promise<UpsertReviewOutcome> {
+    const restroom = this.restrooms.find((r) => r.id === input.restroomId);
+    if (!restroom || restroom.status === "archived") {
+      return { status: "not_found" };
+    }
+
+    const now = new Date().toISOString();
+    const existing = this.reviews.find(
+      (rev) =>
+        rev.restroomId === input.restroomId && rev.userId === input.userId,
+    );
+
+    let reviewId: string;
+    if (existing) {
+      existing.stars = input.stars;
+      existing.comment = input.comment;
+      existing.cleanlinessOk = input.cleanlinessOk;
+      existing.amenitiesOk = input.amenitiesOk;
+      existing.accessOk = input.accessOk;
+      existing.updatedAt = now;
+      reviewId = existing.id;
+    } else {
+      reviewId = crypto.randomUUID();
+      this.reviews.push({
+        id: reviewId,
+        restroomId: input.restroomId,
+        userId: input.userId,
+        stars: input.stars,
+        comment: input.comment,
+        cleanlinessOk: input.cleanlinessOk,
+        amenitiesOk: input.amenitiesOk,
+        accessOk: input.accessOk,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    this.recomputeRestroomRating(input.restroomId);
+    return { status: "upserted", reviewId };
+  }
+
+  async createReviewPhoto(
+    input: CreateReviewPhotoInput,
+  ): Promise<StoredPhotoRow> {
+    this.reviewPhotos.push({
+      id: input.id,
+      reviewId: input.reviewId,
+      storagePath: input.storagePath,
+      sortOrder: input.sortOrder,
+      removedAt: null,
+    });
+    return {
+      id: input.id,
+      storagePath: input.storagePath,
+      sortOrder: input.sortOrder,
+    };
+  }
+
+  async softRemoveReviewPhotos(reviewId: string): Promise<void> {
+    const now = new Date().toISOString();
+    for (const photo of this.reviewPhotos) {
+      if (photo.reviewId === reviewId && photo.removedAt === null) {
+        photo.removedAt = now;
+      }
+    }
+  }
+
+  /** Mirrors after_review_change → recompute_restroom_rating. */
+  private recomputeRestroomRating(restroomId: string): void {
+    const restroom = this.restrooms.find((r) => r.id === restroomId);
+    if (!restroom) return;
+
+    const stars = this.reviews
+      .filter((rev) => rev.restroomId === restroomId)
+      .map((rev) => rev.stars);
+    const count = stars.length;
+    const avg =
+      count === 0
+        ? null
+        : Math.round((stars.reduce((a, b) => a + b, 0) / count) * 10) / 10;
+
+    restroom.ratingAvg = avg;
+    restroom.ratingCount = count;
+    restroom.updatedAt = new Date().toISOString();
+
+    const listing = this.listings.find((l) => l.id === restroomId);
+    if (listing) {
+      listing.ratingAvg = avg;
+      listing.ratingCount = count;
+    }
   }
 }

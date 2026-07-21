@@ -5,6 +5,7 @@ export type {
   CreateEstablishmentInput,
   CreateRestroomInput,
   CreateRestroomPhotoInput,
+  CreateReviewPhotoInput,
   FindActiveNearParams,
   InsertVerifyInput,
   InsertVerifyOutcome,
@@ -13,5 +14,7 @@ export type {
   ReviewAuthorRow,
   ReviewRow,
   StoredPhotoRow,
+  UpsertReviewOutcome,
+  UpsertReviewPortInput,
 } from "./postgres";
 export type { StorageBucket, StoragePort, UploadObjectInput } from "./storage";

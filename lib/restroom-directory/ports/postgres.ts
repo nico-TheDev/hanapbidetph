@@ -113,6 +113,31 @@ export type InsertVerifyOutcome =
   | { status: "conflict" }
   | { status: "not_found" };
 
+export type UpsertReviewPortInput = {
+  restroomId: string;
+  userId: string;
+  stars: number;
+  comment: string | null;
+  cleanlinessOk: boolean | null;
+  amenitiesOk: boolean | null;
+  accessOk: boolean | null;
+};
+
+/**
+ * Upsert review result. Mirrors UNIQUE (restroom_id, user_id) update-in-place
+ * + after_review_change recompute of rating_avg / rating_count.
+ */
+export type UpsertReviewOutcome =
+  | { status: "upserted"; reviewId: string }
+  | { status: "not_found" };
+
+export type CreateReviewPhotoInput = {
+  id: string;
+  reviewId: string;
+  storagePath: string;
+  sortOrder: number;
+};
+
 /**
  * Postgres / PostGIS persistence adapter port.
  * Ticket 02 keeps this thin; later tickets grow query/mutation methods.
@@ -155,4 +180,15 @@ export interface PostgresPort {
    * Archived / missing → not_found; duplicate (restroom_id, user_id) → conflict.
    */
   insertVerify(input: InsertVerifyInput): Promise<InsertVerifyOutcome>;
+
+  /**
+   * Inserts or updates the caller's review (UNIQUE restroom_id + user_id)
+   * and recomputes rating aggregates. Archived / missing → not_found.
+   */
+  upsertReview(input: UpsertReviewPortInput): Promise<UpsertReviewOutcome>;
+
+  createReviewPhoto(input: CreateReviewPhotoInput): Promise<StoredPhotoRow>;
+
+  /** Soft-removes published review photos (sets removed_at). */
+  softRemoveReviewPhotos(reviewId: string): Promise<void>;
 }

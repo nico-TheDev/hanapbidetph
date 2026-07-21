@@ -23,6 +23,7 @@ import {
   listSiblingsInputSchema,
   addRestroomInputSchema,
   searchPlacesInputSchema,
+  upsertReviewInputSchema,
   verifyRestroomInputSchema,
   type AddRestroomInput,
   type AdminMergeInput,
@@ -128,8 +129,8 @@ function requireSignedIn(
 
 /**
  * RestroomDirectory — wires adapter ports.
- * Read ops + searchPlaces / findExistingForPlace / addRestroom / verifyRestroom;
- * remaining write ops later.
+ * Read ops + searchPlaces / findExistingForPlace / addRestroom /
+ * verifyRestroom / upsertReview; remaining write ops later.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}
@@ -327,9 +328,73 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async upsertReview(
-    _input: UpsertReviewInput,
+    input: UpsertReviewInput,
   ): Promise<Result<Review, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireSignedIn(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = upsertReviewInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const data = parsed.data;
+    const outcome = await this.deps.postgres.upsertReview({
+      restroomId: data.restroomId,
+      userId: gated.value.userId,
+      stars: data.stars,
+      comment: data.comment ?? null,
+      cleanlinessOk: data.cleanlinessOk ?? null,
+      amenitiesOk: data.amenitiesOk ?? null,
+      accessOk: data.accessOk ?? null,
+    });
+
+    if (outcome.status === "not_found") {
+      return err("not_found");
+    }
+
+    if (data.photos.length > 0) {
+      await this.deps.postgres.softRemoveReviewPhotos(outcome.reviewId);
+      for (const [sortOrder, photo] of data.photos.entries()) {
+        const photoId = crypto.randomUUID();
+        const storagePath = `${outcome.reviewId}/${photoId}.webp`;
+        await this.deps.storage.upload({
+          bucket: "review-photos",
+          path: storagePath,
+          data: photo.data,
+          contentType: photo.contentType,
+        });
+        await this.deps.postgres.createReviewPhoto({
+          id: photoId,
+          reviewId: outcome.reviewId,
+          storagePath,
+          sortOrder,
+        });
+      }
+    }
+
+    const row = await this.deps.postgres.findRestroomDetail(data.restroomId);
+    const review = row?.reviews.find((r) => r.id === outcome.reviewId);
+    if (!review) {
+      return err("not_found");
+    }
+
+    return ok({
+      id: review.id,
+      restroomId: review.restroomId,
+      stars: review.stars,
+      comment: review.comment,
+      cleanlinessOk: review.cleanlinessOk,
+      amenitiesOk: review.amenitiesOk,
+      accessOk: review.accessOk,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      author: review.author,
+      photos: review.photos.map((p) =>
+        withPublicUrl(this.deps.storage, "review-photos", p),
+      ),
+    });
   }
 
   async reportRestroom(
