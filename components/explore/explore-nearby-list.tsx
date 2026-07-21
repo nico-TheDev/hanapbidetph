@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
  * Desktop sidebar nearby list from `listNearby` (distance-sorted).
  * Row click selects the listing and highlights the matching map pin.
  * Empty nearby / filter-hidden states use APPFLOW copy (ticket 28).
- * Detail panel content lands in a later ticket.
+ * Row click opens the desktop detail panel (ticket 29); content in ticket 30.
  */
 export function ExploreNearbyList() {
   const {

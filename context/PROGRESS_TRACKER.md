@@ -8,7 +8,7 @@ Phase 6 — End-user shell
 
 ## Current Goal
 
-29 — Listing detail shell (mobile bottom sheet + desktop panel)
+30 — Detail content, siblings, and Maps handoff CTA
 
 ## Completed
 
@@ -41,12 +41,13 @@ Phase 6 — End-user shell
 - 26 — Filter chips wired to `listNearby`
 - 27 — Desktop sidebar list (distance-sorted)
 - 28 — Explore empty states (no pins / filters hide all / outside coverage)
+- 29 — Listing detail shell (mobile bottom sheet + desktop panel)
 
 ## In Progress
 
 ## Next Up
 
-- 29 — Listing detail shell (mobile bottom sheet + desktop panel)
+- 30 — Detail content, siblings, and Maps handoff CTA
 
 ## Open Questions
 
@@ -81,6 +82,7 @@ Phase 6 — End-user shell
 - Explore filters: four Soft Aqua / teal chips (Has bidet, Free/Paid cycle, Community verified only, Public/Needs patronage cycle); multi-select → `listNearby` filters; horizontal scroll on mobile; session shares filters with map refetch
 - Explore desktop sidebar: scrollable distance-ordered `listNearby` rows (name, distance when known, bidet + community-verified icons); row click shares `selectedId` with map pin highlight via `ExploreSession`
 - Explore empty states: in-coverage zero pins → “No restrooms nearby” + Widen radius / Clear filters CTAs; filters-hide-all emphasizes Clear filters; outside coverage keeps ticket-23 coming-soon (no conflicting nearby empty); signed-in Add CR hint; mobile map overlay + desktop sidebar; empty list → no phantom pins
+- Explore detail shell: mobile bottom sheet (peek 240px → half → expanded 95%, 40×4 drag handle + expand CTA) over map; desktop detail panel in left sidebar with map still visible; pin tap / row select opens shell via `selectedId`; close returns to map-only Explore; stub content until ticket 30
 
 ## Session Notes
 
@@ -112,3 +114,4 @@ Phase 6 — End-user shell
 - Ticket 26 done: Explore filter chips (Has bidet, Free/Paid cycle, Community verified only, Public/Needs patronage cycle) Soft Aqua / teal styling, horizontal scroll, multi-select → `listNearby` + pin refresh via `ExploreSession`; Vitest covers chip toggle/cycle → filters and filtered loadNearby pins.
 - Ticket 27 done: Desktop sidebar scrollable nearby list (distance-sorted `listNearby` rows with name, gated distance, bidet/verified icons); row select ↔ map pin highlight via shared `ExploreSession.selectedId`; Vitest covers row model, selection sync, and pin highlight.
 - Ticket 28 done: Explore empty states via `resolveExploreEmptyState` (zero nearby / filters hide all / defer outside coverage to coming-soon); Widen radius + Clear filters CTAs; signed-in Add CR hint; mobile map overlay + desktop sidebar; Vitest suite green.
+- Ticket 29 done: listing detail shell on Explore — mobile peek/half/expanded bottom sheet + desktop sidebar panel; `selectedId` from pin/row; close → map-only; stub body until ticket 30; Vitest detail-shell suite green.

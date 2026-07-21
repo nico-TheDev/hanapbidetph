@@ -10,7 +10,7 @@ type ExploreMapPinMarkerProps = {
 
 /**
  * Custom HTML pin glyph for AdvancedMarker — teal / charcoal + dashed Soft Aqua
- * overlay when unverified. Selected state scales up (preview until detail).
+ * overlay when unverified. Selected state scales up when the detail shell is open.
  */
 export function ExploreMapPinMarker({
   appearance,

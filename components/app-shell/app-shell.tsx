@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
+import { ExploreDetailShell } from "@/components/explore/explore-detail-shell";
 import { ExploreMap } from "@/components/explore/explore-map";
 import { ExploreTopBar } from "@/components/explore/explore-top-bar";
 import { MobileBottomTabs } from "@/components/app-shell/mobile-bottom-tabs";
@@ -51,7 +52,10 @@ export function AppShell({ children, isSignedIn = false }: AppShellProps) {
         >
           {showExploreTopBar ? <ExploreTopBar /> : null}
           {showExploreTopBar ? (
-            <ExploreMap />
+            <>
+              <ExploreMap />
+              <ExploreDetailShell variant="mobile" />
+            </>
           ) : (
             <>
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,color-mix(in_oklab,var(--color-primary)_12%,transparent),transparent_55%)]" />

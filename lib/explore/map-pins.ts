@@ -49,7 +49,7 @@ export type MapPinModel = {
 
 /**
  * Maps `listNearby` rows to pin models at establishment coordinates.
- * Selection is driven by `selectedId` (preview until detail ticket).
+ * Selection is driven by `selectedId` (opens detail shell on Explore).
  */
 export function toMapPinModels(
   listings: NearbyRestroom[],
@@ -79,7 +79,7 @@ export function syncSelectedPinId(
     : null;
 }
 
-/** Tap selects the listing (preview state). */
+/** Tap selects the listing and opens the detail shell. */
 export function selectMapPinId(listingId: string): string {
   return listingId;
 }

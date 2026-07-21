@@ -4,9 +4,9 @@
 
 **Blocked by:** 24 — Map pins from `listNearby` (bidet / standard / unverified); 27 — Desktop sidebar nearby list
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Mobile pin tap opens bottom sheet at peek height
-- [ ] Sheet expands to half and full via drag or CTA
-- [ ] Desktop row click opens detail panel in sidebar without hiding map
-- [ ] Back/close returns to map-only Explore state
+- [x] Mobile pin tap opens bottom sheet at peek height
+- [x] Sheet expands to half and full via drag or CTA
+- [x] Desktop row click opens detail panel in sidebar without hiding map
+- [x] Back/close returns to map-only Explore state
