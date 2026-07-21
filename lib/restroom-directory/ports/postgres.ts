@@ -163,6 +163,26 @@ export type InsertReportOutcome =
     }
   | { status: "not_found" };
 
+export type UpdateRestroomFieldsInput = {
+  restroomId: string;
+  floorArea?: string | null;
+  restroomLabel?: string | null;
+  bidetType?: BidetType;
+  hasTissue?: boolean;
+  hasSoap?: boolean;
+  hasHandDrying?: boolean;
+  accessCost?: AccessCost;
+  accessScope?: AccessScope;
+};
+
+export type UpdateRestroomFieldsOutcome =
+  | { status: "updated" }
+  | { status: "not_found" };
+
+export type DeleteRestroomOutcome =
+  | { status: "deleted" }
+  | { status: "not_found" };
+
 /**
  * Postgres / PostGIS persistence adapter port.
  * Ticket 02 keeps this thin; later tickets grow query/mutation methods.
@@ -222,4 +242,30 @@ export interface PostgresPort {
    * Archived / missing → not_found. Multiple reports per listing allowed.
    */
   insertReport(input: InsertReportInput): Promise<InsertReportOutcome>;
+
+  /**
+   * True when another user (not creatorId) has verified or reviewed the listing.
+   * Missing / archived → false (caller handles not_found separately).
+   */
+  hasOtherUserCommunityActivity(
+    restroomId: string,
+    creatorId: string,
+  ): Promise<boolean>;
+
+  /**
+   * Patches amenities / labels on an existing restroom.
+   * Archived / missing → not_found.
+   */
+  updateRestroomFields(
+    input: UpdateRestroomFieldsInput,
+  ): Promise<UpdateRestroomFieldsOutcome>;
+
+  /** Soft-removes published restroom seed photos (sets removed_at). */
+  softRemoveRestroomPhotos(restroomId: string): Promise<void>;
+
+  /**
+   * Hard-deletes a restroom and its seed photos / verifies / reviews / reports.
+   * Missing → not_found.
+   */
+  deleteRestroom(restroomId: string): Promise<DeleteRestroomOutcome>;
 }

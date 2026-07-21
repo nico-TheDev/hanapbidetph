@@ -241,6 +241,8 @@ export const updateRestroomInputSchema = z.object({
   hasHandDrying: z.boolean().optional(),
   accessCost: accessCostSchema.optional(),
   accessScope: accessScopeSchema.optional(),
+  /** When provided, replaces seed photos (max 3). Omitted → leave gallery unchanged. */
+  photos: z.array(photoUploadSchema).max(3).optional(),
 });
 
 export const adminUpsertRestroomInputSchema = addRestroomInputSchema.extend({

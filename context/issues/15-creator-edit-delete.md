@@ -4,9 +4,9 @@
 
 **Blocked by:** 11 — `addRestroom` with establishment creation and seed photos; 12 — `verifyRestroom` + community-verified threshold; 13 — `upsertReview` with photos
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Creator can edit amenities/labels/seed photos when no other-user community activity
-- [ ] Creator edit/delete blocked after another user verifies or reviews
-- [ ] Admin can always edit and archive/delete regardless of community activity
-- [ ] Vitest suite covers gate logic and admin override
+- [x] Creator can edit amenities/labels/seed photos when no other-user community activity
+- [x] Creator edit/delete blocked after another user verifies or reviews
+- [x] Admin can always edit and archive/delete regardless of community activity
+- [x] Vitest suite covers gate logic and admin override

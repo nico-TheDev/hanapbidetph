@@ -12,8 +12,11 @@ import type {
   RestroomDetailRow,
   ReviewRow,
   StoredPhotoRow,
+  UpdateRestroomFieldsInput,
+  UpdateRestroomFieldsOutcome,
   UpsertReviewOutcome,
   UpsertReviewPortInput,
+  DeleteRestroomOutcome,
 } from "../ports/postgres";
 import {
   classifyPinVariant,
@@ -655,6 +658,96 @@ export class InMemoryPostgres implements PostgresPort {
         createdAt: now,
       },
     };
+  }
+
+  async hasOtherUserCommunityActivity(
+    restroomId: string,
+    creatorId: string,
+  ): Promise<boolean> {
+    const otherVerify = this.verifies.some(
+      (v) => v.restroomId === restroomId && v.userId !== creatorId,
+    );
+    if (otherVerify) return true;
+
+    return this.reviews.some(
+      (r) => r.restroomId === restroomId && r.userId !== creatorId,
+    );
+  }
+
+  async updateRestroomFields(
+    input: UpdateRestroomFieldsInput,
+  ): Promise<UpdateRestroomFieldsOutcome> {
+    const restroom = this.restrooms.find((r) => r.id === input.restroomId);
+    if (!restroom || restroom.status === "archived") {
+      return { status: "not_found" };
+    }
+
+    if (input.floorArea !== undefined) restroom.floorArea = input.floorArea;
+    if (input.restroomLabel !== undefined) {
+      restroom.restroomLabel = input.restroomLabel;
+    }
+    if (input.bidetType !== undefined) restroom.bidetType = input.bidetType;
+    if (input.hasTissue !== undefined) restroom.hasTissue = input.hasTissue;
+    if (input.hasSoap !== undefined) restroom.hasSoap = input.hasSoap;
+    if (input.hasHandDrying !== undefined) {
+      restroom.hasHandDrying = input.hasHandDrying;
+    }
+    if (input.accessCost !== undefined) restroom.accessCost = input.accessCost;
+    if (input.accessScope !== undefined) {
+      restroom.accessScope = input.accessScope;
+    }
+    restroom.updatedAt = new Date().toISOString();
+
+    const listing = this.listings.find((l) => l.id === input.restroomId);
+    if (listing) {
+      if (input.bidetType !== undefined) listing.bidetType = input.bidetType;
+      if (input.accessCost !== undefined) listing.accessCost = input.accessCost;
+      if (input.accessScope !== undefined) {
+        listing.accessScope = input.accessScope;
+      }
+      if (input.floorArea !== undefined) listing.floorArea = input.floorArea;
+      if (input.restroomLabel !== undefined) {
+        listing.restroomLabel = input.restroomLabel;
+      }
+    }
+
+    return { status: "updated" };
+  }
+
+  async softRemoveRestroomPhotos(restroomId: string): Promise<void> {
+    const now = new Date().toISOString();
+    for (const photo of this.restroomPhotos) {
+      if (photo.restroomId === restroomId && photo.removedAt === null) {
+        photo.removedAt = now;
+      }
+    }
+  }
+
+  async deleteRestroom(restroomId: string): Promise<DeleteRestroomOutcome> {
+    const index = this.restrooms.findIndex((r) => r.id === restroomId);
+    if (index === -1) {
+      return { status: "not_found" };
+    }
+
+    this.restrooms.splice(index, 1);
+    this.listings = this.listings.filter((l) => l.id !== restroomId);
+    this.restroomPhotos = this.restroomPhotos.filter(
+      (p) => p.restroomId !== restroomId,
+    );
+
+    const reviewIds = new Set(
+      this.reviews
+        .filter((rev) => rev.restroomId === restroomId)
+        .map((rev) => rev.id),
+    );
+    this.reviews = this.reviews.filter((rev) => rev.restroomId !== restroomId);
+    this.reviewPhotos = this.reviewPhotos.filter(
+      (p) => !reviewIds.has(p.reviewId),
+    );
+    this.verifies = this.verifies.filter((v) => v.restroomId !== restroomId);
+    this.reports = this.reports.filter((r) => r.restroomId !== restroomId);
+
+    return { status: "deleted" };
   }
 
   /** Mirrors after_review_change → recompute_restroom_rating. */

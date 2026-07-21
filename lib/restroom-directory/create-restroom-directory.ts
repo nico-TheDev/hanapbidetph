@@ -22,8 +22,10 @@ import {
   listNearbyInputSchema,
   listSiblingsInputSchema,
   addRestroomInputSchema,
+  deleteRestroomInputSchema,
   reportRestroomInputSchema,
   searchPlacesInputSchema,
+  updateRestroomInputSchema,
   upsertReviewInputSchema,
   verifyRestroomInputSchema,
   type AddRestroomInput,
@@ -130,8 +132,8 @@ function requireSignedIn(
 
 /**
  * RestroomDirectory — wires adapter ports.
- * Read ops + searchPlaces / findExistingForPlace / addRestroom /
- * verifyRestroom / upsertReview / reportRestroom; remaining write ops later.
+ * Read ops + write path through creator edit/delete gates;
+ * admin ops remain stubbed for later tickets.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}
@@ -432,15 +434,131 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async deleteRestroom(
-    _input: DeleteRestroomInput,
+    input: DeleteRestroomInput,
   ): Promise<Result<void, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireSignedIn(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = deleteRestroomInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const row = await this.deps.postgres.findRestroomDetail(
+      parsed.data.restroomId,
+    );
+    if (!row || row.status === "archived") {
+      return err("not_found");
+    }
+
+    const isAdmin = gated.value.role === "admin";
+    const isCreator = row.createdBy === gated.value.userId;
+    if (!isAdmin && !isCreator) {
+      return err("forbidden");
+    }
+
+    if (!isAdmin) {
+      const creatorId = row.createdBy ?? gated.value.userId;
+      const blocked = await this.deps.postgres.hasOtherUserCommunityActivity(
+        parsed.data.restroomId,
+        creatorId,
+      );
+      if (blocked) {
+        return err("forbidden");
+      }
+    }
+
+    const outcome = await this.deps.postgres.deleteRestroom(
+      parsed.data.restroomId,
+    );
+    if (outcome.status === "not_found") {
+      return err("not_found");
+    }
+
+    return ok(undefined);
   }
 
   async updateRestroom(
-    _input: UpdateRestroomInput,
+    input: UpdateRestroomInput,
   ): Promise<Result<RestroomDetail, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireSignedIn(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = updateRestroomInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const data = parsed.data;
+    const row = await this.deps.postgres.findRestroomDetail(data.restroomId);
+    if (!row || row.status === "archived") {
+      return err("not_found");
+    }
+
+    const isAdmin = gated.value.role === "admin";
+    const isCreator = row.createdBy === gated.value.userId;
+    if (!isAdmin && !isCreator) {
+      return err("forbidden");
+    }
+
+    if (!isAdmin) {
+      const creatorId = row.createdBy ?? gated.value.userId;
+      const blocked = await this.deps.postgres.hasOtherUserCommunityActivity(
+        data.restroomId,
+        creatorId,
+      );
+      if (blocked) {
+        return err("forbidden");
+      }
+    }
+
+    const outcome = await this.deps.postgres.updateRestroomFields({
+      restroomId: data.restroomId,
+      floorArea: data.floorArea,
+      restroomLabel: data.restroomLabel,
+      bidetType: data.bidetType,
+      hasTissue: data.hasTissue,
+      hasSoap: data.hasSoap,
+      hasHandDrying: data.hasHandDrying,
+      accessCost: data.accessCost,
+      accessScope: data.accessScope,
+    });
+
+    if (outcome.status === "not_found") {
+      return err("not_found");
+    }
+
+    if (data.photos !== undefined) {
+      await this.deps.postgres.softRemoveRestroomPhotos(data.restroomId);
+      for (const [sortOrder, photo] of data.photos.entries()) {
+        const photoId = crypto.randomUUID();
+        const storagePath = `${data.restroomId}/${photoId}.webp`;
+        await this.deps.storage.upload({
+          bucket: "restroom-photos",
+          path: storagePath,
+          data: photo.data,
+          contentType: photo.contentType,
+        });
+        await this.deps.postgres.createRestroomPhoto({
+          id: photoId,
+          restroomId: data.restroomId,
+          uploadedBy: gated.value.userId,
+          storagePath,
+          sortOrder,
+        });
+      }
+    }
+
+    const updated = await this.deps.postgres.findRestroomDetail(
+      data.restroomId,
+    );
+    if (!updated) {
+      return err("not_found");
+    }
+
+    return ok(toRestroomDetail(updated, this.deps.storage));
   }
 
   async adminUpsertRestroom(
