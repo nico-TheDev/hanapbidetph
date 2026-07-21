@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-Phase 5 — Admin
+Phase 6 — End-user shell
 
 ## Current Goal
 
-21 — App shell: routes, mobile bottom tabs, desktop layout frame
+22 — Explore top bar (brand, glass chrome, safe areas)
 
 ## Completed
 
@@ -32,6 +32,7 @@ Phase 5 — Admin
 - 18 — `/admin` layout, role gate, and left nav (`profiles.is_admin`; Listings + Reports; non-admin → `/`)
 - 19 — Admin listings seed/edit page (table + form; `listAdminRestrooms` + `adminUpsertRestroom`)
 - 20 — Admin report queue page (`listOpenReports` + `updateReportStatus` + `adminSetStatus`; dismiss / mark reviewed)
+- 21 — App shell: routes, mobile bottom tabs, desktop layout frame
 
 ## In Progress
 
@@ -39,7 +40,7 @@ _(none)_
 
 ## Next Up
 
-- 21 — App shell: routes, mobile bottom tabs, desktop layout frame
+- 22 — Explore top bar (brand, glass chrome, safe areas)
 
 ## Open Questions
 
@@ -66,6 +67,7 @@ _(none)_
 - `/admin` layout: separate left-nav chrome (Listings / Reports); `requireAdmin` / `resolveAdminGate` enforce `profiles.is_admin` (non-admin and anonymous redirect to `/`)
 - Admin listings page: table of all statuses via `listAdminRestrooms`; seed/edit form persists through `adminUpsertRestroom` (session AuthPort + Supabase Postgres adapter for list/upsert path)
 - Admin report queue: `/admin/reports` lists open reports oldest-first via `listOpenReports`; dismiss → `updateReportStatus(dismissed)`; mark reviewed → `updateReportStatus(reviewed)` + `adminSetStatus`; empty copy “No open reports.”
+- End-user app shell: `(end-user)` route group wraps `/`, `/add`, `/profile`, `/reviews`, `/restrooms/[id]` with mobile bottom tabs (`md:hidden`) and desktop left sidebar + map frame; `/login` and `/admin` stay outside
 
 ## Session Notes
 
@@ -89,3 +91,4 @@ _(none)_
 - Ticket 18 done: `/admin` distinct layout (left nav Listings `/admin/listings` + Reports `/admin/reports`); `resolveAdminGate`/`requireAdmin` via `profiles.is_admin`; anonymous and non-admin → `/`; Vitest admin-gate suite green.
 - Ticket 19 done: `/admin/listings` table (name/status/verify count) + seed/edit form; `listAdminRestrooms` admin-gated; form saves via `adminUpsertRestroom`; Vitest covers list authz + form parse/create/edit persistence.
 - Ticket 20 done: `/admin/reports` open-queue UI (reason/details/listing/reporter); `updateReportStatus` seam + PostgresPort; dismiss or mark reviewed + `adminSetStatus`; empty “No open reports.”; Vitest covers parse/resolve/authz/ordering.
+- Ticket 21 done: end-user shell under `app/(end-user)` — four mobile bottom tabs (Explore · Add CR · Profile · Reviews), desktop sidebar + map placeholders, listing detail route; admin/login layouts untouched; Vitest covers tab order + active-tab resolution.

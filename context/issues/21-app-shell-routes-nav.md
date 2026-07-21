@@ -4,9 +4,9 @@
 
 **Blocked by:** 01 — Next.js scaffold, Tailwind, shadcn/ui, env vars
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] All v1 routes exist and render without error
-- [ ] Mobile viewport shows bottom tab bar with four tabs; active tab highlighted
-- [ ] Desktop viewport hides bottom tabs and reserves left sidebar + map areas
-- [ ] Admin routes use a separate layout (not this shell)
+- [x] All v1 routes exist and render without error
+- [x] Mobile viewport shows bottom tab bar with four tabs; active tab highlighted
+- [x] Desktop viewport hides bottom tabs and reserves left sidebar + map areas
+- [x] Admin routes use a separate layout (not this shell)
