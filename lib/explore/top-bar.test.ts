@@ -1,0 +1,40 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  EXPLORE_TOP_BAR_BRAND,
+  EXPLORE_TOP_BAR_GLASS_CLASS,
+  EXPLORE_TOP_BAR_SAFE_AREA_CLASS,
+  EXPLORE_TOP_BAR_SLOTS,
+  shouldShowExploreTopBar,
+} from "./top-bar";
+
+describe("shouldShowExploreTopBar", () => {
+  it("shows only on Explore home so desktop sidebar-only tabs stay unbroken", () => {
+    expect(shouldShowExploreTopBar("/")).toBe(true);
+    expect(shouldShowExploreTopBar("/add")).toBe(false);
+    expect(shouldShowExploreTopBar("/profile")).toBe(false);
+    expect(shouldShowExploreTopBar("/reviews")).toBe(false);
+    expect(shouldShowExploreTopBar("/restrooms/abc")).toBe(false);
+    expect(shouldShowExploreTopBar("/login")).toBe(false);
+    expect(shouldShowExploreTopBar("/admin")).toBe(false);
+  });
+});
+
+describe("Explore top bar layout contract", () => {
+  it("exposes HanapBidet brand copy for the chrome wordmark", () => {
+    expect(EXPLORE_TOP_BAR_BRAND).toBe("HanapBidet PH");
+  });
+
+  it("reserves placeholder slots for radius, filters, and theme toggle", () => {
+    expect(EXPLORE_TOP_BAR_SLOTS).toEqual(["radius", "filters", "theme"]);
+  });
+
+  it("uses glassmorphic chrome (backdrop blur + soft shadow) over the map", () => {
+    expect(EXPLORE_TOP_BAR_GLASS_CLASS).toContain("backdrop-blur");
+    expect(EXPLORE_TOP_BAR_GLASS_CLASS).toMatch(/shadow|bg-background\//);
+  });
+
+  it("pads for mobile safe-area insets (notches / home indicator)", () => {
+    expect(EXPLORE_TOP_BAR_SAFE_AREA_CLASS).toContain("safe-area-inset-top");
+  });
+});

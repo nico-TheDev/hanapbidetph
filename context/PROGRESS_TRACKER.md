@@ -8,7 +8,7 @@ Phase 6 — End-user shell
 
 ## Current Goal
 
-22 — Explore top bar (brand, glass chrome, safe areas)
+23 — Google Map canvas + geolocation + Metro Manila fallback
 
 ## Completed
 
@@ -33,6 +33,7 @@ Phase 6 — End-user shell
 - 19 — Admin listings seed/edit page (table + form; `listAdminRestrooms` + `adminUpsertRestroom`)
 - 20 — Admin report queue page (`listOpenReports` + `updateReportStatus` + `adminSetStatus`; dismiss / mark reviewed)
 - 21 — App shell: routes, mobile bottom tabs, desktop layout frame
+- 22 — Explore top bar (brand, glass chrome, safe areas)
 
 ## In Progress
 
@@ -40,7 +41,7 @@ _(none)_
 
 ## Next Up
 
-- 22 — Explore top bar (brand, glass chrome, safe areas)
+- 23 — Google Map canvas + geolocation + Metro Manila fallback
 
 ## Open Questions
 
@@ -68,6 +69,7 @@ _(none)_
 - Admin listings page: table of all statuses via `listAdminRestrooms`; seed/edit form persists through `adminUpsertRestroom` (session AuthPort + Supabase Postgres adapter for list/upsert path)
 - Admin report queue: `/admin/reports` lists open reports oldest-first via `listOpenReports`; dismiss → `updateReportStatus(dismissed)`; mark reviewed → `updateReportStatus(reviewed)` + `adminSetStatus`; empty copy “No open reports.”
 - End-user app shell: `(end-user)` route group wraps `/`, `/add`, `/profile`, `/reviews`, `/restrooms/[id]` with mobile bottom tabs (`md:hidden`) and desktop left sidebar + map frame; `/login` and `/admin` stay outside
+- Explore (`/`) top bar: glassmorphic overlay (backdrop blur + soft shadow) with HanapBidet brand, safe-area padding, and placeholder slots for radius / filters / theme; shown only on `/` so sidebar-only tabs stay clean; mobile Explore is map-first (sidebar list `md+` only)
 
 ## Session Notes
 
@@ -92,3 +94,4 @@ _(none)_
 - Ticket 19 done: `/admin/listings` table (name/status/verify count) + seed/edit form; `listAdminRestrooms` admin-gated; form saves via `adminUpsertRestroom`; Vitest covers list authz + form parse/create/edit persistence.
 - Ticket 20 done: `/admin/reports` open-queue UI (reason/details/listing/reporter); `updateReportStatus` seam + PostgresPort; dismiss or mark reviewed + `adminSetStatus`; empty “No open reports.”; Vitest covers parse/resolve/authz/ordering.
 - Ticket 21 done: end-user shell under `app/(end-user)` — four mobile bottom tabs (Explore · Add CR · Profile · Reviews), desktop sidebar + map placeholders, listing detail route; admin/login layouts untouched; Vitest covers tab order + active-tab resolution.
+- Ticket 22 done: Explore top bar overlays map chrome on `/` only (glass + safe areas + brand + radius/filters/theme placeholders); mobile Explore map-first; Vitest covers visibility + layout contract.

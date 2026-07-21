@@ -4,9 +4,9 @@
 
 **Blocked by:** 21 — App shell: routes, mobile bottom tabs, desktop layout frame
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Top bar overlays the map with glass styling (backdrop blur, subtle shadow)
-- [ ] Brand/logo visible; layout respects mobile safe areas
-- [ ] Placeholder areas exist for radius control, filter chips, and theme toggle
-- [ ] Top bar does not appear on desktop sidebar-only views in a broken way
+- [x] Top bar overlays the map with glass styling (backdrop blur, subtle shadow)
+- [x] Brand/logo visible; layout respects mobile safe areas
+- [x] Placeholder areas exist for radius control, filter chips, and theme toggle
+- [x] Top bar does not appear on desktop sidebar-only views in a broken way
