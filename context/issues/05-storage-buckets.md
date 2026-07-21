@@ -4,9 +4,9 @@
 
 **Blocked by:** 03 — Supabase project, PostGIS, enums, profiles + establishments
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Both storage buckets exist with correct path conventions
-- [ ] Public read policy allows serving published photos
-- [ ] Authenticated users can upload only within their upload context
-- [ ] Admin/service role can soft-delete via `removed_at` pattern
+- [x] Both storage buckets exist with correct path conventions
+- [x] Public read policy allows serving published photos
+- [x] Authenticated users can upload only within their upload context
+- [x] Admin/service role can soft-delete via `removed_at` pattern
