@@ -21,6 +21,7 @@ import type {
   Review,
   SearchPlacesInput,
   SiblingRestroom,
+  UpdateReportStatusInput,
   UpdateRestroomInput,
   UpsertReviewInput,
   VerifyRestroomInput,
@@ -103,6 +104,10 @@ export interface RestroomDirectory {
   listMyContributions(): Promise<Result<MyContribution[], DirectoryError>>;
 
   listOpenReports(): Promise<Result<OpenReport[], DirectoryError>>;
+
+  updateReportStatus(
+    input: UpdateReportStatusInput,
+  ): Promise<Result<void, DirectoryError>>;
 
   listAdminRestrooms(): Promise<
     Result<AdminRestroomSummary[], DirectoryError>

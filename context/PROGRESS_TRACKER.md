@@ -8,7 +8,7 @@ Phase 5 — Admin
 
 ## Current Goal
 
-20 — Admin report queue page
+21 — App shell: routes, mobile bottom tabs, desktop layout frame
 
 ## Completed
 
@@ -31,6 +31,7 @@ Phase 5 — Admin
 - 17 — `adminMerge` + `listOpenReports` (archive loser + `merged_into_id`, skip UNIQUE conflicts, recalculate aggregates; open report queue by `created_at`)
 - 18 — `/admin` layout, role gate, and left nav (`profiles.is_admin`; Listings + Reports; non-admin → `/`)
 - 19 — Admin listings seed/edit page (table + form; `listAdminRestrooms` + `adminUpsertRestroom`)
+- 20 — Admin report queue page (`listOpenReports` + `updateReportStatus` + `adminSetStatus`; dismiss / mark reviewed)
 
 ## In Progress
 
@@ -38,7 +39,7 @@ _(none)_
 
 ## Next Up
 
-- 20 — Admin report queue page
+- 21 — App shell: routes, mobile bottom tabs, desktop layout frame
 
 ## Open Questions
 
@@ -64,6 +65,7 @@ _(none)_
 - `adminMerge` / `listOpenReports`: admin-only; merge archives loser (`merged_into_id` → survivor), reassigns non-conflicting verifies/reviews, recalculates survivor aggregates (seed photos not copied); open reports queue oldest-first with establishment + reporter display names
 - `/admin` layout: separate left-nav chrome (Listings / Reports); `requireAdmin` / `resolveAdminGate` enforce `profiles.is_admin` (non-admin and anonymous redirect to `/`)
 - Admin listings page: table of all statuses via `listAdminRestrooms`; seed/edit form persists through `adminUpsertRestroom` (session AuthPort + Supabase Postgres adapter for list/upsert path)
+- Admin report queue: `/admin/reports` lists open reports oldest-first via `listOpenReports`; dismiss → `updateReportStatus(dismissed)`; mark reviewed → `updateReportStatus(reviewed)` + `adminSetStatus`; empty copy “No open reports.”
 
 ## Session Notes
 
@@ -86,3 +88,4 @@ _(none)_
 - Ticket 17 done: `adminMerge` / `listOpenReports` admin-gated; loser archived with `merged_into_id`, unique verifies/reviews reassigned (duplicates skipped), survivor aggregates recalculated; open report queue oldest-first; Vitest covers merge semantics, UNIQUE skip, queue ordering, auth gates.
 - Ticket 18 done: `/admin` distinct layout (left nav Listings `/admin/listings` + Reports `/admin/reports`); `resolveAdminGate`/`requireAdmin` via `profiles.is_admin`; anonymous and non-admin → `/`; Vitest admin-gate suite green.
 - Ticket 19 done: `/admin/listings` table (name/status/verify count) + seed/edit form; `listAdminRestrooms` admin-gated; form saves via `adminUpsertRestroom`; Vitest covers list authz + form parse/create/edit persistence.
+- Ticket 20 done: `/admin/reports` open-queue UI (reason/details/listing/reporter); `updateReportStatus` seam + PostgresPort; dismiss or mark reviewed + `adminSetStatus`; empty “No open reports.”; Vitest covers parse/resolve/authz/ordering.

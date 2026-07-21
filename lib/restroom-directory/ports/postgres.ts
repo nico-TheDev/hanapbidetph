@@ -244,6 +244,19 @@ export type OpenReportRow = {
   reporterDisplayName: string;
 };
 
+export type UpdateReportStatusInput = {
+  reportId: string;
+  status: "reviewed" | "dismissed";
+  reviewedBy: string;
+};
+
+/**
+ * Closes an open report. Missing / already closed → not_found.
+ */
+export type UpdateReportStatusOutcome =
+  | { status: "updated" }
+  | { status: "not_found" };
+
 /**
  * Postgres / PostGIS persistence adapter port.
  * Ticket 02 keeps this thin; later tickets grow query/mutation methods.
@@ -361,6 +374,14 @@ export interface PostgresPort {
    * (matches `reports_open_queue_idx`).
    */
   findOpenReports(): Promise<OpenReportRow[]>;
+
+  /**
+   * Sets report status to reviewed/dismissed with reviewer metadata.
+   * Only open reports may be updated; missing / already closed → not_found.
+   */
+  updateReportStatus(
+    input: UpdateReportStatusInput,
+  ): Promise<UpdateReportStatusOutcome>;
 
   /**
    * All restroom listings for the admin seed/edit table

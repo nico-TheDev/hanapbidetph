@@ -20,6 +20,8 @@ import type {
   SoftRemovePhotoOutcome,
   StoredPhotoRow,
   UpdateEstablishmentInput,
+  UpdateReportStatusInput,
+  UpdateReportStatusOutcome,
   UpdateRestroomFieldsInput,
   UpdateRestroomFieldsOutcome,
   UpsertReviewOutcome,
@@ -144,6 +146,8 @@ export type SeedReport = {
   details: string | null;
   status: ReportStatus;
   createdAt: string;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
 };
 
 function haversineMeters(
@@ -986,6 +990,21 @@ export class InMemoryPostgres implements PostgresPort {
           reporterDisplayName: reporter?.displayName ?? "Unknown",
         };
       });
+  }
+
+  async updateReportStatus(
+    input: UpdateReportStatusInput,
+  ): Promise<UpdateReportStatusOutcome> {
+    const report = this.reports.find((r) => r.id === input.reportId);
+    if (!report || report.status !== "open") {
+      return { status: "not_found" };
+    }
+
+    const now = new Date().toISOString();
+    report.status = input.status;
+    report.reviewedBy = input.reviewedBy;
+    report.reviewedAt = now;
+    return { status: "updated" };
   }
 
   async findAdminRestroomSummaries(): Promise<AdminRestroomSummary[]> {

@@ -4,9 +4,9 @@
 
 **Blocked by:** 18 — `/admin` layout, role gate, and left nav; 17 — `adminMerge` + `listOpenReports`
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Open reports displayed in a queue ordered by date
-- [ ] Admin can view report reason, details, and linked listing
-- [ ] Admin can dismiss a report or mark reviewed and set listing status
-- [ ] Empty queue shows "No open reports"
+- [x] Open reports displayed in a queue ordered by date
+- [x] Admin can view report reason, details, and linked listing
+- [x] Admin can dismiss a report or mark reviewed and set listing status
+- [x] Empty queue shows "No open reports"

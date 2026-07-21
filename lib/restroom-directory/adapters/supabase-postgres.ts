@@ -24,6 +24,8 @@ import type {
   SoftRemovePhotoOutcome,
   StoredPhotoRow,
   UpdateEstablishmentInput,
+  UpdateReportStatusInput,
+  UpdateReportStatusOutcome,
   UpdateRestroomFieldsInput,
   UpdateRestroomFieldsOutcome,
   UpsertReviewOutcome,
@@ -85,7 +87,7 @@ function toEstablishment(row: EstablishmentRow): Establishment {
 }
 
 /**
- * Supabase-backed PostgresPort covering admin list + upsert paths.
+ * Supabase-backed PostgresPort covering admin list + upsert + report queue.
  * Other methods throw until later tickets wire them.
  */
 export function createSupabasePostgres(): PostgresPort {
@@ -405,7 +407,81 @@ export function createSupabasePostgres(): PostgresPort {
     },
 
     async findOpenReports(): Promise<OpenReportRow[]> {
-      notImplemented("findOpenReports");
+      const supabase = await db();
+      const { data, error } = await supabase
+        .from("reports")
+        .select(
+          "id, restroom_id, reason, details, status, created_at, restrooms ( establishments ( name ) ), profiles!reports_reporter_id_fkey ( display_name )",
+        )
+        .eq("status", "open")
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      type Joined = {
+        id: string;
+        restroom_id: string;
+        reason: OpenReportRow["reason"];
+        details: string | null;
+        status: "open";
+        created_at: string;
+        restrooms:
+          | {
+              establishments: { name: string } | { name: string }[] | null;
+            }
+          | {
+              establishments: { name: string } | { name: string }[] | null;
+            }[]
+          | null;
+        profiles: { display_name: string } | { display_name: string }[] | null;
+      };
+
+      function firstRelation<T>(value: T | T[] | null | undefined): T | null {
+        if (value == null) return null;
+        return Array.isArray(value) ? (value[0] ?? null) : value;
+      }
+
+      return ((data ?? []) as Joined[]).map((row) => {
+        const restroom = firstRelation(row.restrooms);
+        const establishment = firstRelation(restroom?.establishments ?? null);
+        const reporter = firstRelation(row.profiles);
+        return {
+          id: row.id,
+          restroomId: row.restroom_id,
+          reason: row.reason,
+          details: row.details,
+          status: "open" as const,
+          createdAt: row.created_at,
+          restroomName: establishment?.name ?? "Unknown",
+          reporterDisplayName: reporter?.display_name ?? "Unknown",
+        };
+      });
+    },
+
+    async updateReportStatus(
+      input: UpdateReportStatusInput,
+    ): Promise<UpdateReportStatusOutcome> {
+      const supabase = await db();
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("reports")
+        .update({
+          status: input.status,
+          reviewed_by: input.reviewedBy,
+          reviewed_at: now,
+        })
+        .eq("id", input.reportId)
+        .eq("status", "open")
+        .select("id")
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      if (!data) return { status: "not_found" };
+      return { status: "updated" };
     },
 
     async findAdminRestroomSummaries(): Promise<AdminRestroomSummary[]> {

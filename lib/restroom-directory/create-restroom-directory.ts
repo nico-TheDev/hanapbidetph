@@ -29,6 +29,7 @@ import {
   deleteRestroomInputSchema,
   reportRestroomInputSchema,
   searchPlacesInputSchema,
+  updateReportStatusInputSchema,
   updateRestroomInputSchema,
   upsertReviewInputSchema,
   verifyRestroomInputSchema,
@@ -53,6 +54,7 @@ import {
   type Review,
   type SearchPlacesInput,
   type SiblingRestroom,
+  type UpdateReportStatusInput,
   type UpdateRestroomInput,
   type UpsertReviewInput,
   type VerifyRestroomInput,
@@ -802,6 +804,30 @@ class StubRestroomDirectory implements RestroomDirectory {
 
     const rows = await this.deps.postgres.findOpenReports();
     return ok(rows);
+  }
+
+  async updateReportStatus(
+    input: UpdateReportStatusInput,
+  ): Promise<Result<void, DirectoryError>> {
+    const actor = await this.deps.auth.getActor();
+    const gated = requireAdmin(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = updateReportStatusInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const outcome = await this.deps.postgres.updateReportStatus({
+      reportId: parsed.data.reportId,
+      status: parsed.data.status,
+      reviewedBy: gated.value.userId,
+    });
+    if (outcome.status === "not_found") {
+      return err("not_found");
+    }
+
+    return ok(undefined);
   }
 
   async listAdminRestrooms(): Promise<

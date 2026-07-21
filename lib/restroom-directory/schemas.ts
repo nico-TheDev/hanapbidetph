@@ -269,6 +269,12 @@ export const adminRemovePhotoInputSchema = z.object({
   kind: z.enum(["restroom", "review"]),
 });
 
+/** Close an open report as reviewed or dismissed (admin queue). */
+export const updateReportStatusInputSchema = z.object({
+  reportId: z.string().uuid(),
+  status: z.enum(["reviewed", "dismissed"]),
+});
+
 export const myContributionSchema = z.object({
   restroomId: z.string().uuid(),
   name: z.string(),
@@ -337,6 +343,9 @@ export type AdminUpsertRestroomInput = z.input<
 export type AdminSetStatusInput = z.infer<typeof adminSetStatusInputSchema>;
 export type AdminMergeInput = z.infer<typeof adminMergeInputSchema>;
 export type AdminRemovePhotoInput = z.infer<typeof adminRemovePhotoInputSchema>;
+export type UpdateReportStatusInput = z.infer<
+  typeof updateReportStatusInputSchema
+>;
 export type MyContribution = z.infer<typeof myContributionSchema>;
 export type OpenReport = z.infer<typeof openReportSchema>;
 export type AdminRestroomSummary = z.infer<typeof adminRestroomSummarySchema>;
