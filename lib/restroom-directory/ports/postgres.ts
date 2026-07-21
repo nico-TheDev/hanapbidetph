@@ -70,6 +70,35 @@ export type RestroomDetailRow = {
   updatedAt: string;
 };
 
+export type CreateEstablishmentInput = {
+  placeId: string;
+  name: string;
+  formattedAddress: string | null;
+  lat: number;
+  lng: number;
+};
+
+export type CreateRestroomInput = {
+  establishmentId: string;
+  createdBy: string;
+  floorArea: string | null;
+  restroomLabel: string | null;
+  bidetType: BidetType;
+  hasTissue: boolean;
+  hasSoap: boolean;
+  hasHandDrying: boolean;
+  accessCost: AccessCost;
+  accessScope: AccessScope;
+};
+
+export type CreateRestroomPhotoInput = {
+  id: string;
+  restroomId: string;
+  uploadedBy: string;
+  storagePath: string;
+  sortOrder: number;
+};
+
 /**
  * Postgres / PostGIS persistence adapter port.
  * Ticket 02 keeps this thin; later tickets grow query/mutation methods.
@@ -93,4 +122,17 @@ export interface PostgresPort {
    * Empty when the place is unknown or has no active listings.
    */
   findActiveRestroomsByPlaceId(placeId: string): Promise<SiblingRestroom[]>;
+
+  findEstablishmentByPlaceId(placeId: string): Promise<Establishment | null>;
+
+  createEstablishment(
+    input: CreateEstablishmentInput,
+  ): Promise<Establishment>;
+
+  /** Inserts an active restroom with verify_count = 0. */
+  createRestroom(input: CreateRestroomInput): Promise<{ id: string }>;
+
+  createRestroomPhoto(
+    input: CreateRestroomPhotoInput,
+  ): Promise<StoredPhotoRow>;
 }

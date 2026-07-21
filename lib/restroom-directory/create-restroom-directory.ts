@@ -21,6 +21,7 @@ import {
   getRestroomInputSchema,
   listNearbyInputSchema,
   listSiblingsInputSchema,
+  addRestroomInputSchema,
   searchPlacesInputSchema,
   type AddRestroomInput,
   type AdminMergeInput,
@@ -126,7 +127,7 @@ function requireSignedIn(
 
 /**
  * RestroomDirectory — wires adapter ports.
- * Read ops + searchPlaces / findExistingForPlace; remaining write ops later.
+ * Read ops + searchPlaces / findExistingForPlace / addRestroom; remaining write ops later.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}
@@ -228,9 +229,68 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async addRestroom(
-    _input: AddRestroomInput,
+    input: AddRestroomInput,
   ): Promise<Result<RestroomDetail, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireSignedIn(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = addRestroomInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const data = parsed.data;
+    let establishment =
+      await this.deps.postgres.findEstablishmentByPlaceId(data.placeId);
+
+    if (!establishment) {
+      establishment = await this.deps.postgres.createEstablishment({
+        placeId: data.placeId,
+        name: data.name,
+        formattedAddress: data.formattedAddress ?? null,
+        lat: data.lat,
+        lng: data.lng,
+      });
+    }
+
+    const { id: restroomId } = await this.deps.postgres.createRestroom({
+      establishmentId: establishment.id,
+      createdBy: gated.value.userId,
+      floorArea: data.floorArea ?? null,
+      restroomLabel: data.restroomLabel ?? null,
+      bidetType: data.bidetType,
+      hasTissue: data.hasTissue,
+      hasSoap: data.hasSoap,
+      hasHandDrying: data.hasHandDrying,
+      accessCost: data.accessCost,
+      accessScope: data.accessScope,
+    });
+
+    for (const [sortOrder, photo] of data.photos.entries()) {
+      const photoId = crypto.randomUUID();
+      const storagePath = `${restroomId}/${photoId}.webp`;
+      await this.deps.storage.upload({
+        bucket: "restroom-photos",
+        path: storagePath,
+        data: photo.data,
+        contentType: photo.contentType,
+      });
+      await this.deps.postgres.createRestroomPhoto({
+        id: photoId,
+        restroomId,
+        uploadedBy: gated.value.userId,
+        storagePath,
+        sortOrder,
+      });
+    }
+
+    const row = await this.deps.postgres.findRestroomDetail(restroomId);
+    if (!row) {
+      return err("not_found");
+    }
+
+    return ok(toRestroomDetail(row, this.deps.storage));
   }
 
   async verifyRestroom(

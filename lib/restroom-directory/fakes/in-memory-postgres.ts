@@ -1,4 +1,7 @@
 import type {
+  CreateEstablishmentInput,
+  CreateRestroomInput,
+  CreateRestroomPhotoInput,
   FindActiveNearParams,
   PostgresPort,
   RestroomDetailRow,
@@ -14,6 +17,7 @@ import type {
   AccessCost,
   AccessScope,
   BidetType,
+  Establishment,
   NearbyRestroom,
   RestroomStatus,
   SiblingRestroom,
@@ -75,6 +79,7 @@ export type SeedRestroom = {
 export type SeedRestroomPhoto = {
   id: string;
   restroomId: string;
+  uploadedBy?: string;
   storagePath: string;
   sortOrder: number;
   removedAt: string | null;
@@ -365,5 +370,103 @@ export class InMemoryPostgres implements PostgresPort {
           r.establishmentId === establishment.id && r.status === "active",
       )
       .map(toSibling);
+  }
+
+  async findEstablishmentByPlaceId(
+    placeId: string,
+  ): Promise<Establishment | null> {
+    const establishment = this.establishments.find(
+      (e) => e.placeId === placeId,
+    );
+    if (!establishment) return null;
+    return {
+      id: establishment.id,
+      placeId: establishment.placeId,
+      name: establishment.name,
+      formattedAddress: establishment.formattedAddress,
+      lat: establishment.lat,
+      lng: establishment.lng,
+    };
+  }
+
+  async createEstablishment(
+    input: CreateEstablishmentInput,
+  ): Promise<Establishment> {
+    const existing = this.establishments.find(
+      (e) => e.placeId === input.placeId,
+    );
+    if (existing) {
+      return {
+        id: existing.id,
+        placeId: existing.placeId,
+        name: existing.name,
+        formattedAddress: existing.formattedAddress,
+        lat: existing.lat,
+        lng: existing.lng,
+      };
+    }
+
+    const establishment: SeedEstablishment = {
+      id: crypto.randomUUID(),
+      placeId: input.placeId,
+      name: input.name,
+      formattedAddress: input.formattedAddress,
+      lat: input.lat,
+      lng: input.lng,
+    };
+    this.establishments.push(establishment);
+    return {
+      id: establishment.id,
+      placeId: establishment.placeId,
+      name: establishment.name,
+      formattedAddress: establishment.formattedAddress,
+      lat: establishment.lat,
+      lng: establishment.lng,
+    };
+  }
+
+  async createRestroom(
+    input: CreateRestroomInput,
+  ): Promise<{ id: string }> {
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    this.restrooms.push({
+      id,
+      establishmentId: input.establishmentId,
+      createdBy: input.createdBy,
+      floorArea: input.floorArea,
+      restroomLabel: input.restroomLabel,
+      bidetType: input.bidetType,
+      hasTissue: input.hasTissue,
+      hasSoap: input.hasSoap,
+      hasHandDrying: input.hasHandDrying,
+      accessCost: input.accessCost,
+      accessScope: input.accessScope,
+      status: "active",
+      verifyCount: 0,
+      ratingAvg: null,
+      ratingCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { id };
+  }
+
+  async createRestroomPhoto(
+    input: CreateRestroomPhotoInput,
+  ): Promise<StoredPhotoRow> {
+    this.restroomPhotos.push({
+      id: input.id,
+      restroomId: input.restroomId,
+      uploadedBy: input.uploadedBy,
+      storagePath: input.storagePath,
+      sortOrder: input.sortOrder,
+      removedAt: null,
+    });
+    return {
+      id: input.id,
+      storagePath: input.storagePath,
+      sortOrder: input.sortOrder,
+    };
   }
 }

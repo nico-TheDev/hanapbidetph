@@ -4,10 +4,10 @@
 
 **Blocked by:** 10 — `searchPlaces` + `findExistingForPlace`; 05 — Storage buckets and upload policies
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] New `place_id` creates establishment + restroom in one publish
-- [ ] Existing `place_id` adds a sibling restroom at the same establishment
-- [ ] Listing publishes immediately as Active with unverified overlay (`verify_count = 0`)
-- [ ] Max 3 seed photos enforced; guest cannot add
-- [ ] Vitest suite covers new/sibling paths and photo limit
+- [x] New `place_id` creates establishment + restroom in one publish
+- [x] Existing `place_id` adds a sibling restroom at the same establishment
+- [x] Listing publishes immediately as Active with unverified overlay (`verify_count = 0`)
+- [x] Max 3 seed photos enforced; guest cannot add
+- [x] Vitest suite covers new/sibling paths and photo limit

@@ -8,7 +8,7 @@ Phase 4 — Write path (user)
 
 ## Current Goal
 
-11 — `addRestroom`
+12 — `verifyRestroom`
 
 ## Completed
 
@@ -22,6 +22,7 @@ Phase 4 — Write path (user)
 - 08 — Google auth via Supabase (`/login`, `/auth/callback`, session proxy, `getSession`/`getUser`)
 - 09 — Return-to-interrupted-flow and auth-gate utility (`safeReturnPath`, `loginHref`, `oauthCallbackHref`, `resolveAuthGate`/`requireAuth`, `next` through OAuth callback)
 - 10 — `searchPlaces` + `findExistingForPlace` (Places autocomplete via adapter, active restrooms by `place_id`, auth required)
+- 11 — `addRestroom` (establishment upsert by `place_id`, active + unverified listing, ≤3 seed photos)
 
 ## In Progress
 
@@ -29,7 +30,7 @@ _(none)_
 
 ## Next Up
 
-- 11 — `addRestroom`
+- 12 — `verifyRestroom` + community-verified threshold
 
 ## Open Questions
 
@@ -42,10 +43,11 @@ _(none)_
 - Domain tables migration adds `restrooms` (+ photos/verifies/reviews/reports), RLS (anon read / scoped auth writes / `is_admin` bypass), and triggers for `verify_count` + rating aggregates
 - Storage buckets `restroom-photos` / `review-photos` are public; object paths `{entity_id}/{photo_id}.webp`; SELECT gated to published (`removed_at IS NULL`) + uploader/admin; INSERT scoped to entity ownership; soft-delete via photo-row `removed_at` (no authenticated storage DELETE)
 - `listNearby` uses PostgresPort `findActiveRestroomsNear` (PostGIS `ST_DWithin` pattern); in-memory fake haversine stand-in seeds domain rows, excludes non-`active`, applies filters, and computes `hasBidet` / `communityVerified` / `pinVariant`
-- `getRestroom` / `listSiblings` use PostgresPort `findRestroomDetail` + `findActiveSiblings`; directory maps public photo URLs via StoragePort, sets `isDisputed` from status, treats archived/missing as `not_found`; siblings are other `active` restrooms at the same establishment
+- `getRestroom` / `listSiblings` uses PostgresPort `findRestroomDetail` + `findActiveSiblings`; directory maps public photo URLs via StoragePort, sets `isDisputed` from status, treats archived/missing as `not_found`; siblings are other `active` restrooms at the same establishment
 - Google OAuth via Supabase Auth + `@supabase/ssr`: JWT in HTTP-only cookies; root `proxy.ts` refreshes session; `/login` + `/auth/callback` (PKCE code exchange); `getSession` / `getUser` helpers for Server Actions
 - Auth gate: gated surfaces call `resolveAuthGate` / `requireAuth` with the interrupted path; anonymous → `/login?next=…`; Google OAuth `redirectTo` carries safe `next` to `/auth/callback`; success redirects to that same-origin path (open redirects rejected)
 - `searchPlaces` uses PlacesPort `autocomplete` (not persisted); `findExistingForPlace` uses PostgresPort `findActiveRestroomsByPlaceId`; both require signed-in actor (`unauthenticated` for guests)
+- `addRestroom` finds-or-creates establishment by `place_id`, inserts active restroom (`verify_count = 0`), uploads ≤3 seed photos to `restroom-photos/{restroom_id}/{photo_id}.webp`, and returns detail; guests get `unauthenticated`
 
 ## Session Notes
 
@@ -59,3 +61,4 @@ _(none)_
 - Ticket 08 done: `/login` (“Continue with Google”), `/auth/callback` PKCE exchange into HTTP-only cookies (no tokens in redirect URL), `proxy.ts` session refresh, `lib/auth` `getSession`/`getUser` + failure/cancel retry messaging; Vitest auth suite green.
 - Ticket 09 done: reusable `resolveAuthGate`/`requireAuth` + `loginHref`/`oauthCallbackHref`/`safeReturnPath`; `/login` + OAuth callback preserve `next` end-to-end; signed-in users on `/login` redirect to return path; Vitest covers anonymous redirect, authenticated pass-through, success return, and open-redirect rejection.
 - Ticket 10 done: `searchPlaces` / `findExistingForPlace` auth-gated; PlacesPort autocomplete + Postgres `findActiveRestroomsByPlaceId`; Vitest covers empty Places matches, existing active restrooms (excludes disputed/archived/other places), guest `unauthenticated`, and no persistence on search.
+- Ticket 11 done: `addRestroom` auth-gated; find-or-create establishment by `place_id`, insert Active + `verify_count = 0`, upload ≤3 seed photos via StoragePort; Vitest covers new place, sibling at existing establishment, photo limit, guest denial.
