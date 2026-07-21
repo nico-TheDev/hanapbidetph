@@ -287,6 +287,7 @@ export type ListNearbyInput = z.input<typeof listNearbyInputSchema>;
 export type ListNearbyParsed = z.output<typeof listNearbyInputSchema>;
 export type NearbyRestroom = z.infer<typeof nearbyRestroomSchema>;
 export type GetRestroomInput = z.infer<typeof getRestroomInputSchema>;
+export type Establishment = z.infer<typeof establishmentSchema>;
 export type RestroomDetail = z.infer<typeof restroomDetailSchema>;
 export type ListSiblingsInput = z.infer<typeof listSiblingsInputSchema>;
 export type SiblingRestroom = z.infer<typeof siblingRestroomSchema>;

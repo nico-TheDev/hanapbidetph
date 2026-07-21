@@ -8,7 +8,7 @@ Phase 2 — Read path
 
 ## Current Goal
 
-07 — `getRestroom` + `listSiblings` via RestroomDirectory.
+08 — Google auth via RestroomDirectory / Supabase.
 
 ## Completed
 
@@ -18,12 +18,12 @@ Phase 2 — Read path
 - 04 — Restrooms, photos, verifies, reviews, reports tables + RLS + aggregate triggers
 - 05 — Storage buckets (`restroom-photos`, `review-photos`) + storage RLS policies
 - 06 — `listNearby` with radius, filters, pin-variant classification, disputed exclusion
+- 07 — `getRestroom` detail + `listSiblings` (photos, reviews newest-first, disputed flag, archived/missing → not_found)
 
 ## In Progress
 
 ## Next Up
 
-- 07 — getRestroom + siblings (blocked by 04 — cleared)
 - 08 — Google auth (blocked by auth ticket prerequisites)
 
 ## Open Questions
@@ -37,6 +37,7 @@ Phase 2 — Read path
 - Domain tables migration adds `restrooms` (+ photos/verifies/reviews/reports), RLS (anon read / scoped auth writes / `is_admin` bypass), and triggers for `verify_count` + rating aggregates
 - Storage buckets `restroom-photos` / `review-photos` are public; object paths `{entity_id}/{photo_id}.webp`; SELECT gated to published (`removed_at IS NULL`) + uploader/admin; INSERT scoped to entity ownership; soft-delete via photo-row `removed_at` (no authenticated storage DELETE)
 - `listNearby` uses PostgresPort `findActiveRestroomsNear` (PostGIS `ST_DWithin` pattern); in-memory fake haversine stand-in seeds domain rows, excludes non-`active`, applies filters, and computes `hasBidet` / `communityVerified` / `pinVariant`
+- `getRestroom` / `listSiblings` use PostgresPort `findRestroomDetail` + `findActiveSiblings`; directory maps public photo URLs via StoragePort, sets `isDisputed` from status, treats archived/missing as `not_found`; siblings are other `active` restrooms at the same establishment
 
 ## Session Notes
 
@@ -46,3 +47,4 @@ Phase 2 — Read path
 - Ticket 04 done: `supabase/migrations/20260722000001_domain_tables_rls_triggers.sql` — six tables + indexes/UNIQUEs, RLS policies per auth model, `after_insert_verify` / `after_delete_verify` / `after_review_change`; Vitest contract tests green.
 - Ticket 05 done: `supabase/migrations/20260722000002_storage_buckets.sql` — public `restroom-photos` / `review-photos` buckets (WebP), SELECT for published photos, authenticated INSERT scoped to restroom creator / review author path context, soft-delete via `removed_at`; Vitest contract tests green.
 - Ticket 06 done: `listNearby` Vitest suite (`list-nearby.test.ts`) covers radius ordering, disputed/non-active exclusion, four filters + combo, pin variants (`bidet` / `standard` / `*_unverified`), and 1 km default / 5 km max validation; `InMemoryPostgres.seedListings` + `pin-variant.ts` helpers.
+- Ticket 07 done: `get-restroom-siblings.test.ts` covers full detail (establishment, amenities, aggregates, non-removed photos, reviews newest-first), disputed `isDisputed`, archived/missing `not_found`, active siblings excluding current / disputed / archived / other establishments; PostgresPort grew `findRestroomDetail` + `findActiveSiblings`.

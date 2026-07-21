@@ -4,10 +4,10 @@
 
 **Blocked by:** 04 — Restrooms, photos, verifies, reviews, reports tables + RLS + triggers
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `getRestroom` returns full detail payload including photos and reviews (newest first)
-- [ ] `listSiblings` returns active restrooms at the same establishment excluding the current one
-- [ ] Archived/missing listing returns a not-found error
-- [ ] Disputed listing is returned with `is_disputed: true`
-- [ ] Vitest suite covers detail, siblings, and error cases
+- [x] `getRestroom` returns full detail payload including photos and reviews (newest first)
+- [x] `listSiblings` returns active restrooms at the same establishment excluding the current one
+- [x] Archived/missing listing returns a not-found error
+- [x] Disputed listing is returned with `is_disputed: true`
+- [x] Vitest suite covers detail, siblings, and error cases

@@ -1,15 +1,25 @@
 import type { AuthPort } from "./ports/auth";
 import type { GeolocationPort } from "./ports/geolocation";
 import type { PlacesPort } from "./ports/places";
-import type { PostgresPort } from "./ports/postgres";
+import type {
+  PostgresPort,
+  RestroomDetailRow,
+  StoredPhotoRow,
+} from "./ports/postgres";
 import type { StoragePort } from "./ports/storage";
+import {
+  hasBidetFromType,
+  isCommunityVerified,
+} from "./pin-variant";
 import { err, ok, type Result } from "./result";
 import type {
   DirectoryError,
   RestroomDirectory,
 } from "./restroom-directory";
 import {
+  getRestroomInputSchema,
   listNearbyInputSchema,
+  listSiblingsInputSchema,
   type AddRestroomInput,
   type AdminMergeInput,
   type AdminRemovePhotoInput,
@@ -36,6 +46,65 @@ import {
   type VerifyRestroomResult,
 } from "./schemas";
 
+function withPublicUrl(
+  storage: StoragePort,
+  bucket: "restroom-photos" | "review-photos",
+  photo: StoredPhotoRow,
+) {
+  return {
+    id: photo.id,
+    storagePath: photo.storagePath,
+    publicUrl: storage.getPublicUrl(bucket, photo.storagePath),
+    sortOrder: photo.sortOrder,
+  };
+}
+
+function toRestroomDetail(
+  row: RestroomDetailRow,
+  storage: StoragePort,
+): RestroomDetail {
+  return {
+    id: row.id,
+    establishment: row.establishment,
+    floorArea: row.floorArea,
+    restroomLabel: row.restroomLabel,
+    bidetType: row.bidetType,
+    hasBidet: hasBidetFromType(row.bidetType),
+    hasTissue: row.hasTissue,
+    hasSoap: row.hasSoap,
+    hasHandDrying: row.hasHandDrying,
+    accessCost: row.accessCost,
+    accessScope: row.accessScope,
+    status: row.status,
+    verifyCount: row.verifyCount,
+    communityVerified: isCommunityVerified(row.verifyCount),
+    ratingAvg: row.ratingAvg,
+    ratingCount: row.ratingCount,
+    isDisputed: row.status === "disputed",
+    createdBy: row.createdBy,
+    photos: row.photos.map((p) =>
+      withPublicUrl(storage, "restroom-photos", p),
+    ),
+    reviews: row.reviews.map((rev) => ({
+      id: rev.id,
+      restroomId: rev.restroomId,
+      stars: rev.stars,
+      comment: rev.comment,
+      cleanlinessOk: rev.cleanlinessOk,
+      amenitiesOk: rev.amenitiesOk,
+      accessOk: rev.accessOk,
+      createdAt: rev.createdAt,
+      updatedAt: rev.updatedAt,
+      author: rev.author,
+      photos: rev.photos.map((p) =>
+        withPublicUrl(storage, "review-photos", p),
+      ),
+    })),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 export type RestroomDirectoryDeps = {
   auth: AuthPort;
   places: PlacesPort;
@@ -46,7 +115,7 @@ export type RestroomDirectoryDeps = {
 
 /**
  * RestroomDirectory — wires adapter ports.
- * listNearby is implemented; remaining operations fill in on later tickets.
+ * listNearby / getRestroom / listSiblings are implemented; remaining ops later.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}
@@ -77,15 +146,37 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async getRestroom(
-    _input: GetRestroomInput,
+    input: GetRestroomInput,
   ): Promise<Result<RestroomDetail, DirectoryError>> {
-    return err("not_implemented");
+    const parsed = getRestroomInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const row = await this.deps.postgres.findRestroomDetail(parsed.data.id);
+    if (!row || row.status === "archived") {
+      return err("not_found");
+    }
+
+    return ok(toRestroomDetail(row, this.deps.storage));
   }
 
   async listSiblings(
-    _input: ListSiblingsInput,
+    input: ListSiblingsInput,
   ): Promise<Result<SiblingRestroom[], DirectoryError>> {
-    return err("not_implemented");
+    const parsed = listSiblingsInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const siblings = await this.deps.postgres.findActiveSiblings(
+      parsed.data.restroomId,
+    );
+    if (siblings === null) {
+      return err("not_found");
+    }
+
+    return ok(siblings);
   }
 
   async searchPlaces(

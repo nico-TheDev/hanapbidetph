@@ -1,4 +1,10 @@
-import type { FindActiveNearParams, PostgresPort } from "../ports/postgres";
+import type {
+  FindActiveNearParams,
+  PostgresPort,
+  RestroomDetailRow,
+  ReviewRow,
+  StoredPhotoRow,
+} from "../ports/postgres";
 import {
   classifyPinVariant,
   hasBidetFromType,
@@ -10,6 +16,7 @@ import type {
   BidetType,
   NearbyRestroom,
   RestroomStatus,
+  SiblingRestroom,
 } from "../schemas";
 
 /** Domain row seeded into the in-memory PostGIS stand-in (pre-DTO). */
@@ -28,6 +35,70 @@ export type SeedNearbyListing = {
   ratingCount?: number;
   floorArea?: string | null;
   restroomLabel?: string | null;
+};
+
+export type SeedProfile = {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+export type SeedEstablishment = {
+  id: string;
+  placeId: string;
+  name: string;
+  formattedAddress: string | null;
+  lat: number;
+  lng: number;
+};
+
+export type SeedRestroom = {
+  id: string;
+  establishmentId: string;
+  createdBy: string | null;
+  floorArea: string | null;
+  restroomLabel: string | null;
+  bidetType: BidetType;
+  hasTissue: boolean;
+  hasSoap: boolean;
+  hasHandDrying: boolean;
+  accessCost: AccessCost;
+  accessScope: AccessScope;
+  status: RestroomStatus;
+  verifyCount: number;
+  ratingAvg: number | null;
+  ratingCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SeedRestroomPhoto = {
+  id: string;
+  restroomId: string;
+  storagePath: string;
+  sortOrder: number;
+  removedAt: string | null;
+};
+
+export type SeedReview = {
+  id: string;
+  restroomId: string;
+  userId: string;
+  stars: number;
+  comment: string | null;
+  cleanlinessOk: boolean | null;
+  amenitiesOk: boolean | null;
+  accessOk: boolean | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SeedReviewPhoto = {
+  id: string;
+  reviewId: string;
+  storagePath: string;
+  sortOrder: number;
+  removedAt: string | null;
 };
 
 function haversineMeters(
@@ -74,15 +145,74 @@ function toNearbyRestroom(
   };
 }
 
+function toSibling(row: SeedRestroom): SiblingRestroom {
+  return {
+    id: row.id,
+    floorArea: row.floorArea,
+    restroomLabel: row.restroomLabel,
+    bidetType: row.bidetType,
+    hasBidet: hasBidetFromType(row.bidetType),
+    verifyCount: row.verifyCount,
+    communityVerified: isCommunityVerified(row.verifyCount),
+    ratingAvg: row.ratingAvg,
+    ratingCount: row.ratingCount,
+  };
+}
+
+function publishedPhotos(
+  photos: SeedRestroomPhoto[],
+  restroomId: string,
+): StoredPhotoRow[] {
+  return photos
+    .filter((p) => p.restroomId === restroomId && p.removedAt === null)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((p) => ({
+      id: p.id,
+      storagePath: p.storagePath,
+      sortOrder: p.sortOrder,
+    }));
+}
+
 /**
  * In-memory PostGIS stand-in for RestroomDirectory tests.
- * Mirrors `ST_DWithin` + `status = 'active'` nearby query pattern.
+ * Mirrors `ST_DWithin` + `status = 'active'` nearby query pattern,
+ * plus detail/sibling reads for getRestroom / listSiblings.
  */
 export class InMemoryPostgres implements PostgresPort {
   private listings: SeedNearbyListing[] = [];
+  private profiles: SeedProfile[] = [];
+  private establishments: SeedEstablishment[] = [];
+  private restrooms: SeedRestroom[] = [];
+  private restroomPhotos: SeedRestroomPhoto[] = [];
+  private reviews: SeedReview[] = [];
+  private reviewPhotos: SeedReviewPhoto[] = [];
 
   seedListings(listings: SeedNearbyListing[]): void {
     this.listings = listings;
+  }
+
+  seedProfiles(profiles: SeedProfile[]): void {
+    this.profiles = profiles;
+  }
+
+  seedEstablishments(establishments: SeedEstablishment[]): void {
+    this.establishments = establishments;
+  }
+
+  seedRestrooms(restrooms: SeedRestroom[]): void {
+    this.restrooms = restrooms;
+  }
+
+  seedRestroomPhotos(photos: SeedRestroomPhoto[]): void {
+    this.restroomPhotos = photos;
+  }
+
+  seedReviews(reviews: SeedReview[]): void {
+    this.reviews = reviews;
+  }
+
+  seedReviewPhotos(photos: SeedReviewPhoto[]): void {
+    this.reviewPhotos = photos;
   }
 
   async findActiveRestroomsNear(
@@ -128,5 +258,96 @@ export class InMemoryPostgres implements PostgresPort {
         return true;
       })
       .sort((a, b) => a.distanceMeters - b.distanceMeters);
+  }
+
+  async findRestroomDetail(id: string): Promise<RestroomDetailRow | null> {
+    const restroom = this.restrooms.find((r) => r.id === id);
+    if (!restroom) return null;
+
+    const establishment = this.establishments.find(
+      (e) => e.id === restroom.establishmentId,
+    );
+    if (!establishment) return null;
+
+    const reviews: ReviewRow[] = this.reviews
+      .filter((rev) => rev.restroomId === id)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      .map((rev) => {
+        const profile = this.profiles.find((p) => p.id === rev.userId);
+        const photos = this.reviewPhotos
+          .filter((p) => p.reviewId === rev.id && p.removedAt === null)
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((p) => ({
+            id: p.id,
+            storagePath: p.storagePath,
+            sortOrder: p.sortOrder,
+          }));
+
+        return {
+          id: rev.id,
+          restroomId: rev.restroomId,
+          stars: rev.stars,
+          comment: rev.comment,
+          cleanlinessOk: rev.cleanlinessOk,
+          amenitiesOk: rev.amenitiesOk,
+          accessOk: rev.accessOk,
+          createdAt: rev.createdAt,
+          updatedAt: rev.updatedAt,
+          author: {
+            userId: rev.userId,
+            displayName: profile?.displayName ?? "Unknown",
+            avatarUrl: profile?.avatarUrl ?? null,
+          },
+          photos,
+        };
+      });
+
+    return {
+      id: restroom.id,
+      establishment: {
+        id: establishment.id,
+        placeId: establishment.placeId,
+        name: establishment.name,
+        formattedAddress: establishment.formattedAddress,
+        lat: establishment.lat,
+        lng: establishment.lng,
+      },
+      floorArea: restroom.floorArea,
+      restroomLabel: restroom.restroomLabel,
+      bidetType: restroom.bidetType,
+      hasTissue: restroom.hasTissue,
+      hasSoap: restroom.hasSoap,
+      hasHandDrying: restroom.hasHandDrying,
+      accessCost: restroom.accessCost,
+      accessScope: restroom.accessScope,
+      status: restroom.status,
+      verifyCount: restroom.verifyCount,
+      ratingAvg: restroom.ratingAvg,
+      ratingCount: restroom.ratingCount,
+      createdBy: restroom.createdBy,
+      photos: publishedPhotos(this.restroomPhotos, id),
+      reviews,
+      createdAt: restroom.createdAt,
+      updatedAt: restroom.updatedAt,
+    };
+  }
+
+  async findActiveSiblings(
+    restroomId: string,
+  ): Promise<SiblingRestroom[] | null> {
+    const restroom = this.restrooms.find((r) => r.id === restroomId);
+    if (!restroom || restroom.status === "archived") return null;
+
+    return this.restrooms
+      .filter(
+        (r) =>
+          r.establishmentId === restroom.establishmentId &&
+          r.id !== restroomId &&
+          r.status === "active",
+      )
+      .map(toSibling);
   }
 }
