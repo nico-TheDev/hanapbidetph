@@ -4,9 +4,9 @@
 
 **Blocked by:** 02 — RestroomDirectory interface, adapter ports, Vitest harness
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] PostGIS extension enabled
-- [ ] All six enums created (`bidet_type`, `access_cost`, `access_scope`, `restroom_status`, `report_reason`, `report_status`)
-- [ ] `profiles` and `establishments` tables with indexes match DATA_ARCHITECTURE
-- [ ] Profile bootstrap trigger fires on new `auth.users` row
+- [x] PostGIS extension enabled
+- [x] All six enums created (`bidet_type`, `access_cost`, `access_scope`, `restroom_status`, `report_reason`, `report_status`)
+- [x] `profiles` and `establishments` tables with indexes match DATA_ARCHITECTURE
+- [x] Profile bootstrap trigger fires on new `auth.users` row

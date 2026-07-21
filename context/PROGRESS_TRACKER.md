@@ -5,22 +5,24 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-Phase 0 — Scaffold (complete) → Phase 1 — Data foundation
+Phase 1 — Data foundation
 
 ## Current Goal
 
-03 — Supabase core schema (enums, profiles, establishments, PostGIS).
+04 — Restrooms, photos, verifies, reviews, reports tables + RLS + triggers.
 
 ## Completed
 
 - 01 — Next.js scaffold, Tailwind, shadcn/ui, env vars
 - 02 — RestroomDirectory interface, adapter ports, Vitest harness
+- 03 — Supabase core schema (PostGIS, enums, profiles, establishments, auth bootstrap trigger)
 
 ## In Progress
 
 ## Next Up
 
-- 03 — Supabase core schema
+- 04 — Restrooms, photos, verifies, reviews, reports + RLS + triggers
+- 05 — Storage buckets (blocked by 03 — cleared)
 - 08 — Google auth (blocked by auth ticket prerequisites)
 
 ## Open Questions
@@ -30,8 +32,10 @@ Phase 0 — Scaffold (complete) → Phase 1 — Data foundation
 - App uses Next.js 16 App Router + Tailwind v4 + shadcn/ui (base-nova)
 - Brand tokens: Fresh Teal `#006767` primary; Montserrat (headings) + Public Sans (body) via `next/font`
 - Domain seam lives at `lib/restroom-directory` with Zod I/O schemas, adapter ports (Places, Postgres, Storage, Auth, Geolocation), and in-memory fakes for Vitest
+- Supabase migrations under `supabase/migrations/`; core schema enables PostGIS, six domain enums, `profiles` + `establishments`, and `on_auth_user_created` profile bootstrap
 
 ## Session Notes
 
 - Ticket 01 done: `pnpm dev` serves blank `/`; `.env.example` documents TRD public + server env names; TypeScript `strict` enabled.
 - Ticket 02 done: `pnpm test` green with smoke test through `createRestroomDirectory` + in-memory adapters; stub ops return `not_implemented` except `listNearby` (empty list via Postgres fake).
+- Ticket 03 done: `supabase/migrations/20260722000000_core_schema.sql` — PostGIS, six enums, profiles (partial `is_admin` index), establishments (`place_id` unique + GIST on generated `location`), `on_auth_user_created` → "Maria S." display name from Google metadata; Vitest contract tests green.
