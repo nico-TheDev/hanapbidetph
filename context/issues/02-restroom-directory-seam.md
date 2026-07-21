@@ -4,9 +4,9 @@
 
 **Blocked by:** 01 — Next.js scaffold, Tailwind, shadcn/ui, env vars
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `RestroomDirectory` interface declares all v1 operations with typed inputs/outputs
-- [ ] Adapter port interfaces exist for Places, Postgres, Storage, Auth, and Geolocation
-- [ ] In-memory fakes implement each adapter port for tests
-- [ ] `pnpm test` passes with at least one smoke test through the seam
+- [x] `RestroomDirectory` interface declares all v1 operations with typed inputs/outputs
+- [x] Adapter port interfaces exist for Places, Postgres, Storage, Auth, and Geolocation
+- [x] In-memory fakes implement each adapter port for tests
+- [x] `pnpm test` passes with at least one smoke test through the seam
