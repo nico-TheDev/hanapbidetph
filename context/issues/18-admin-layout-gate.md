@@ -4,9 +4,9 @@
 
 **Blocked by:** 09 — Return-to-interrupted-flow and auth-gate utility
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `/admin` uses a distinct layout (no bottom tabs, no map chrome)
-- [ ] Left nav links to Listings and Reports sections
-- [ ] Non-admin signed-in user and anonymous user are redirected to `/`
-- [ ] Admin user can access `/admin` without error
+- [x] `/admin` uses a distinct layout (no bottom tabs, no map chrome)
+- [x] Left nav links to Listings and Reports sections
+- [x] Non-admin signed-in user and anonymous user are redirected to `/`
+- [x] Admin user can access `/admin` without error

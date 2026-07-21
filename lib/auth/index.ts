@@ -10,3 +10,9 @@ export {
   safeReturnPath,
 } from "./auth-gate";
 export type { AuthGateResult } from "./auth-gate";
+export { requireAdmin, resolveAdminGate } from "./admin-gate";
+export type {
+  AdminGateOptions,
+  AdminGateResult,
+  LookupIsAdmin,
+} from "./admin-gate";
