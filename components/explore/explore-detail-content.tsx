@@ -2,6 +2,7 @@
 
 import { BadgeCheck, Droplets } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useEffectEvent, useState } from "react";
 
 import {
@@ -13,6 +14,10 @@ import {
   type DetailContentView,
   type MapsPlatform,
 } from "@/lib/explore/detail-content";
+import {
+  toReviewsFeedView,
+  type ReviewsFeedView,
+} from "@/lib/explore/detail-reviews";
 import { loadRestroomDetailAction } from "@/lib/explore/load-detail-action";
 import type {
   NearbyRestroom,
@@ -25,6 +30,7 @@ type ExploreDetailContentProps = {
   listingId: string;
   nearby?: NearbyRestroom;
   distancesAvailable: boolean;
+  isSignedIn?: boolean;
   onSelectSibling: (siblingId: string) => void;
   className?: string;
 };
@@ -40,13 +46,14 @@ type LoadState =
     };
 
 /**
- * Listing detail body: amenities, trust, photos, siblings, Maps handoff.
- * Reviews feed and verify/rate/report CTAs are later tickets.
+ * Listing detail body: amenities, trust, photos, siblings, Maps handoff,
+ * and read-only reviews feed (ticket 31). Verify/rate/report CTAs are later.
  */
 export function ExploreDetailContent({
   listingId,
   nearby,
   distancesAvailable,
+  isSignedIn = false,
   onSelectSibling,
   className,
 }: ExploreDetailContentProps) {
@@ -119,10 +126,16 @@ export function ExploreDetailContent({
     distancesAvailable,
     mapsPlatform: state.mapsPlatform,
   });
+  const reviews = toReviewsFeedView({
+    reviews: state.detail.reviews,
+    listingId: state.detail.id,
+    isSignedIn,
+  });
 
   return (
     <DetailContentBody
       view={view}
+      reviews={reviews}
       onSelectSibling={onSelectSibling}
       className={className}
     />
@@ -131,10 +144,12 @@ export function ExploreDetailContent({
 
 function DetailContentBody({
   view,
+  reviews,
   onSelectSibling,
   className,
 }: {
   view: DetailContentView;
+  reviews: ReviewsFeedView;
   onSelectSibling: (siblingId: string) => void;
   className?: string;
 }) {
@@ -298,6 +313,132 @@ function DetailContentBody({
           </ul>
         </section>
       ) : null}
+
+      <DetailReviewsFeed reviews={reviews} />
     </div>
+  );
+}
+
+function DetailReviewsFeed({ reviews }: { reviews: ReviewsFeedView }) {
+  return (
+    <section
+      data-explore="detail-reviews"
+      className="flex flex-col gap-3"
+      aria-label={reviews.title}
+    >
+      <h3 className="font-heading text-sm font-semibold tracking-tight">
+        {reviews.title}
+      </h3>
+
+      {reviews.isEmpty ? (
+        <div
+          data-explore="detail-reviews-empty"
+          className="bg-secondary/60 flex flex-col gap-2 rounded-xl px-3.5 py-3"
+          role="status"
+        >
+          <p className="text-foreground text-sm font-medium leading-relaxed">
+            {reviews.emptyCopy}
+          </p>
+          {reviews.showSignInHint && reviews.signInHref ? (
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {reviews.signInHint}{" "}
+              <Link
+                href={reviews.signInHref}
+                data-explore="detail-reviews-sign-in"
+                className="text-primary font-medium underline-offset-2 hover:underline"
+              >
+                {reviews.signInCta}
+              </Link>
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <ul
+          data-explore="detail-reviews-list"
+          className="flex flex-col gap-3"
+        >
+          {reviews.items.map((item) => (
+            <li
+              key={item.id}
+              data-explore="detail-review"
+              data-review-id={item.id}
+              className="border-border/60 flex flex-col gap-2 border-t pt-3 first:border-t-0 first:pt-0"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <span
+                  data-explore="detail-review-author"
+                  className="text-foreground text-sm font-medium"
+                >
+                  {item.authorDisplayName}
+                </span>
+                <span
+                  data-explore="detail-review-stars"
+                  className="text-primary text-sm tracking-wide tabular-nums"
+                  aria-label={`${item.stars} out of 5 stars`}
+                >
+                  {item.starLabels}
+                </span>
+              </div>
+
+              {item.checkboxChips.length > 0 ? (
+                <ul
+                  data-explore="detail-review-checkboxes"
+                  className="flex flex-wrap gap-1.5"
+                  aria-label="Review checkboxes"
+                >
+                  {item.checkboxChips.map((chip) => (
+                    <li
+                      key={chip.id}
+                      data-checkbox={chip.id}
+                      data-ok={chip.ok ? "true" : "false"}
+                      className={cn(
+                        "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                        chip.ok
+                          ? "bg-[#d0e7e9] text-[#006767]"
+                          : "bg-secondary text-muted-foreground",
+                      )}
+                    >
+                      {chip.label}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {item.comment ? (
+                <p
+                  data-explore="detail-review-comment"
+                  className="text-foreground/90 text-sm leading-relaxed"
+                >
+                  {item.comment}
+                </p>
+              ) : null}
+
+              {item.photos.length > 0 ? (
+                <ul
+                  data-explore="detail-review-photos"
+                  className="flex gap-2 overflow-x-auto pb-0.5"
+                >
+                  {item.photos.map((photo) => (
+                    <li
+                      key={photo.id}
+                      className="bg-secondary relative h-20 w-24 shrink-0 overflow-hidden rounded-lg"
+                    >
+                      <Image
+                        src={photo.publicUrl}
+                        alt=""
+                        fill
+                        unoptimized
+                        className="object-cover"
+                        sizes="96px"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

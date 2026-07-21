@@ -4,9 +4,9 @@
 
 **Blocked by:** 30 — Detail content, siblings, and Maps handoff CTA
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Reviews render newest-first with attribution, stars, and comment
-- [ ] Review photos display in the feed when present
-- [ ] Empty state encourages first rating (auth-gated for anonymous users)
+- [x] Reviews render newest-first with attribution, stars, and comment
+- [x] Review photos display in the feed when present
+- [x] Empty state encourages first rating (auth-gated for anonymous users)
 - [ ] Feed updates after a review is submitted (wired in ticket 33)

@@ -171,7 +171,7 @@ export function toDetailSiblingRows(
 
 /**
  * View model for listing detail content (ticket 30).
- * Reviews feed / verify·rate·report CTAs are later tickets.
+ * Reviews feed is ticket 31; verify·rate·report CTAs are later.
  */
 export function toDetailContentView(input: {
   detail: RestroomDetail;

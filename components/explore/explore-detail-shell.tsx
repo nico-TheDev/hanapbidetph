@@ -43,6 +43,7 @@ export function ExploreDetailShell({
     setSelectedId,
     listings,
     distancesAvailable,
+    isSignedIn,
   } = useExploreSession();
   const [snap, setSnap] = useState<DetailSheetSnap>("peek");
   const view = resolveDetailShellView(selectedId, snap);
@@ -98,6 +99,7 @@ export function ExploreDetailShell({
         listingId={selectedId}
         nearby={nearby}
         distancesAvailable={distancesAvailable}
+        isSignedIn={isSignedIn}
         onSelectSibling={(siblingId) => setSelectedId(siblingId)}
       />
     </DetailShellFrame>
