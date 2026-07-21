@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-Phase 2 — Read path
+Phase 3 — Auth
 
 ## Current Goal
 
-08 — Google auth via RestroomDirectory / Supabase.
+09 — Return-to-interrupted-flow and auth-gate utility.
 
 ## Completed
 
@@ -19,12 +19,13 @@ Phase 2 — Read path
 - 05 — Storage buckets (`restroom-photos`, `review-photos`) + storage RLS policies
 - 06 — `listNearby` with radius, filters, pin-variant classification, disputed exclusion
 - 07 — `getRestroom` detail + `listSiblings` (photos, reviews newest-first, disputed flag, archived/missing → not_found)
+- 08 — Google auth via Supabase (`/login`, `/auth/callback`, session proxy, `getSession`/`getUser`)
 
 ## In Progress
 
 ## Next Up
 
-- 08 — Google auth (blocked by auth ticket prerequisites)
+- 09 — Return-to-interrupted-flow and auth-gate utility
 
 ## Open Questions
 
@@ -38,6 +39,7 @@ Phase 2 — Read path
 - Storage buckets `restroom-photos` / `review-photos` are public; object paths `{entity_id}/{photo_id}.webp`; SELECT gated to published (`removed_at IS NULL`) + uploader/admin; INSERT scoped to entity ownership; soft-delete via photo-row `removed_at` (no authenticated storage DELETE)
 - `listNearby` uses PostgresPort `findActiveRestroomsNear` (PostGIS `ST_DWithin` pattern); in-memory fake haversine stand-in seeds domain rows, excludes non-`active`, applies filters, and computes `hasBidet` / `communityVerified` / `pinVariant`
 - `getRestroom` / `listSiblings` use PostgresPort `findRestroomDetail` + `findActiveSiblings`; directory maps public photo URLs via StoragePort, sets `isDisputed` from status, treats archived/missing as `not_found`; siblings are other `active` restrooms at the same establishment
+- Google OAuth via Supabase Auth + `@supabase/ssr`: JWT in HTTP-only cookies; root `proxy.ts` refreshes session; `/login` + `/auth/callback` (PKCE code exchange); `getSession` / `getUser` helpers for Server Actions
 
 ## Session Notes
 
@@ -48,3 +50,4 @@ Phase 2 — Read path
 - Ticket 05 done: `supabase/migrations/20260722000002_storage_buckets.sql` — public `restroom-photos` / `review-photos` buckets (WebP), SELECT for published photos, authenticated INSERT scoped to restroom creator / review author path context, soft-delete via `removed_at`; Vitest contract tests green.
 - Ticket 06 done: `listNearby` Vitest suite (`list-nearby.test.ts`) covers radius ordering, disputed/non-active exclusion, four filters + combo, pin variants (`bidet` / `standard` / `*_unverified`), and 1 km default / 5 km max validation; `InMemoryPostgres.seedListings` + `pin-variant.ts` helpers.
 - Ticket 07 done: `get-restroom-siblings.test.ts` covers full detail (establishment, amenities, aggregates, non-removed photos, reviews newest-first), disputed `isDisputed`, archived/missing `not_found`, active siblings excluding current / disputed / archived / other establishments; PostgresPort grew `findRestroomDetail` + `findActiveSiblings`.
+- Ticket 08 done: `/login` (“Continue with Google”), `/auth/callback` PKCE exchange into HTTP-only cookies (no tokens in redirect URL), `proxy.ts` session refresh, `lib/auth` `getSession`/`getUser` + failure/cancel retry messaging; Vitest auth suite green.

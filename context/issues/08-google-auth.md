@@ -4,9 +4,9 @@
 
 **Blocked by:** 01 — Next.js scaffold, Tailwind, shadcn/ui, env vars
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] User can sign in with Google and land back in the app with a valid session
-- [ ] Session is available to Server Actions via cookie-based JWT
-- [ ] Auth cancel or Google failure shows retry on `/login`
-- [ ] `/auth/callback` handles OAuth return without exposing tokens to the client
+- [x] User can sign in with Google and land back in the app with a valid session
+- [x] Session is available to Server Actions via cookie-based JWT
+- [x] Auth cancel or Google failure shows retry on `/login`
+- [x] `/auth/callback` handles OAuth return without exposing tokens to the client
