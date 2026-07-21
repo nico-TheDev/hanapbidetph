@@ -8,7 +8,7 @@ Phase 6 — End-user shell
 
 ## Current Goal
 
-32 — Verify CTA on listing detail
+33 — Rate/review form on listing detail
 
 ## Completed
 
@@ -44,12 +44,13 @@ Phase 6 — End-user shell
 - 29 — Listing detail shell (mobile bottom sheet + desktop panel)
 - 30 — Detail content, siblings, and Maps handoff CTA
 - 31 — Reviews feed on detail (read-only)
+- 32 — Verify CTA on listing detail
 
 ## In Progress
 
 ## Next Up
 
-- 32 — Verify CTA on listing detail
+- 33 — Rate/review form on listing detail
 
 ## Open Questions
 
@@ -84,7 +85,8 @@ Phase 6 — End-user shell
 - Explore filters: four Soft Aqua / teal chips (Has bidet, Free/Paid cycle, Community verified only, Public/Needs patronage cycle); multi-select → `listNearby` filters; horizontal scroll on mobile; session shares filters with map refetch
 - Explore desktop sidebar: scrollable distance-ordered `listNearby` rows (name, distance when known, bidet + community-verified icons); row click shares `selectedId` with map pin highlight via `ExploreSession`
 - Explore empty states: in-coverage zero pins → “No restrooms nearby” + Widen radius / Clear filters CTAs; filters-hide-all emphasizes Clear filters; outside coverage keeps ticket-23 coming-soon (no conflicting nearby empty); signed-in Add CR hint; mobile map overlay + desktop sidebar; empty list → no phantom pins
-- Explore detail shell: mobile bottom sheet (peek 240px → half → expanded 95%, 40×4 drag handle + expand CTA) over map; desktop detail panel in left sidebar with map still visible; pin tap / row select opens shell via `selectedId`; close returns to map-only Explore; body from `getRestroom` / `listSiblings` (amenities, trust, photos, siblings, Maps handoff, read-only reviews feed)
+- Explore detail shell: mobile bottom sheet (peek 240px → half → expanded 95%, 40×4 drag handle + expand CTA) over map; desktop detail panel in left sidebar with map still visible; pin tap / row select opens shell via `selectedId`; close returns to map-only Explore; body from `getRestroom` / `listSiblings` (amenities, trust, photos, siblings, Maps handoff, read-only reviews feed, auth-gated Verify CTA with OAuth resume on `/restrooms/[id]?action=verify`)
+- Auth return-path helpers (`loginHref` / `safeReturnPath` / `oauthCallbackHref`) live in client-safe `lib/auth/return-path` so Explore CTAs can build `/login?next=…` without importing server-only `auth-gate`
 
 ## Session Notes
 
@@ -119,3 +121,4 @@ Phase 6 — End-user shell
 - Ticket 29 done: listing detail shell on Explore — mobile peek/half/expanded bottom sheet + desktop sidebar panel; `selectedId` from pin/row; close → map-only; stub body until ticket 30; Vitest detail-shell suite green.
 - Ticket 30 done: detail shell content from `getRestroom` + `listSiblings` (establishment, floor/label, amenities, distance when known, Community verified ≥3, seed gallery/placeholder, sibling switchers); primary “Open in Google Maps” teal-gradient handoff (Apple Maps on iOS); Vitest detail-content + load-detail suites green.
 - Ticket 31 done: detail read-only reviews feed newest-first (attribution, stars, checkbox chips, comment, review photos); empty “No feedback yet — be the first to rate” with guest sign-in hint via `loginHref`; Vitest detail-reviews suite green; post-submit refresh deferred to ticket 33.
+- Ticket 32 done: detail “Verify this CR” CTA auth-gated via `loginHref(/restrooms/{id}?action=verify)`; `verifyRestroomAction` + Supabase `insertVerify`; one verify/user → Verified; count + Community verified ≥3 update in-place; error keeps detail + Retry; OAuth resume auto-verifies; Vitest detail-verify + action suites green.

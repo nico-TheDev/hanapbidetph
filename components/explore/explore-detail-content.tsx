@@ -3,6 +3,7 @@
 import { BadgeCheck, Droplets } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useState } from "react";
 
 import {
@@ -18,7 +19,15 @@ import {
   toReviewsFeedView,
   type ReviewsFeedView,
 } from "@/lib/explore/detail-reviews";
+import {
+  VERIFY_ERROR_COPY,
+  applyVerifyResult,
+  shouldAutoVerify,
+  toVerifyCtaView,
+  type VerifyCtaView,
+} from "@/lib/explore/detail-verify";
 import { loadRestroomDetailAction } from "@/lib/explore/load-detail-action";
+import { verifyRestroomAction } from "@/lib/explore/verify-restroom-action";
 import type {
   NearbyRestroom,
   RestroomDetail,
@@ -31,8 +40,16 @@ type ExploreDetailContentProps = {
   nearby?: NearbyRestroom;
   distancesAvailable: boolean;
   isSignedIn?: boolean;
+  /** OAuth / deep-link resume: `action=verify` auto-submits once signed in. */
+  resumeAction?: string | null;
   onSelectSibling: (siblingId: string) => void;
   className?: string;
+};
+
+type TrustState = {
+  verifyCount: number;
+  communityVerified: boolean;
+  viewerHasVerified: boolean;
 };
 
 type LoadState =
@@ -47,20 +64,30 @@ type LoadState =
 
 /**
  * Listing detail body: amenities, trust, photos, siblings, Maps handoff,
- * and read-only reviews feed (ticket 31). Verify/rate/report CTAs are later.
+ * read-only reviews (ticket 31), and Verify CTA (ticket 32).
  */
 export function ExploreDetailContent({
   listingId,
   nearby,
   distancesAvailable,
   isSignedIn = false,
+  resumeAction = null,
   onSelectSibling,
   className,
 }: ExploreDetailContentProps) {
+  const router = useRouter();
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [trust, setTrust] = useState<TrustState | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifyPending, setVerifyPending] = useState(false);
+  const [autoVerifyDone, setAutoVerifyDone] = useState(false);
 
   const load = useEffectEvent(async (id: string) => {
     setState({ status: "loading" });
+    setTrust(null);
+    setVerifyError(null);
+    setVerifyPending(false);
+    setAutoVerifyDone(false);
     const result = await loadRestroomDetailAction(id);
     if (!result.ok) {
       setState({
@@ -78,6 +105,11 @@ export function ExploreDetailContent({
         ? detectMapsPlatform(navigator.userAgent)
         : "other";
 
+    setTrust({
+      verifyCount: result.detail.verifyCount,
+      communityVerified: result.detail.communityVerified,
+      viewerHasVerified: false,
+    });
     setState({
       status: "ready",
       detail: result.detail,
@@ -86,9 +118,52 @@ export function ExploreDetailContent({
     });
   });
 
+  const runVerify = useEffectEvent(async (id: string, clearResume: boolean) => {
+    setVerifyPending(true);
+    setVerifyError(null);
+    const result = await verifyRestroomAction(id);
+    setVerifyPending(false);
+
+    if (!result.ok) {
+      if (result.error === "unauthenticated" && result.loginHref) {
+        router.push(result.loginHref);
+        return;
+      }
+      setVerifyError(result.message || VERIFY_ERROR_COPY);
+      return;
+    }
+
+    setTrust(applyVerifyResult(result));
+    if (clearResume) {
+      router.replace(`/restrooms/${id}`);
+    }
+  });
+
   useEffect(() => {
     void load(listingId);
   }, [listingId]);
+
+  useEffect(() => {
+    if (state.status !== "ready" || !trust) {
+      return;
+    }
+    if (!isSignedIn || !shouldAutoVerify(resumeAction) || autoVerifyDone) {
+      return;
+    }
+    if (trust.viewerHasVerified) {
+      setAutoVerifyDone(true);
+      return;
+    }
+    setAutoVerifyDone(true);
+    void runVerify(listingId, true);
+  }, [
+    state.status,
+    trust,
+    isSignedIn,
+    resumeAction,
+    autoVerifyDone,
+    listingId,
+  ]);
 
   if (state.status === "loading") {
     return (
@@ -119,8 +194,18 @@ export function ExploreDetailContent({
     );
   }
 
+  const trustState = trust ?? {
+    verifyCount: state.detail.verifyCount,
+    communityVerified: state.detail.communityVerified,
+    viewerHasVerified: false,
+  };
+
   const view = toDetailContentView({
-    detail: state.detail,
+    detail: {
+      ...state.detail,
+      verifyCount: trustState.verifyCount,
+      communityVerified: trustState.communityVerified,
+    },
     siblings: state.siblings,
     nearby,
     distancesAvailable,
@@ -131,12 +216,23 @@ export function ExploreDetailContent({
     listingId: state.detail.id,
     isSignedIn,
   });
+  const verify = toVerifyCtaView({
+    listingId: state.detail.id,
+    isSignedIn,
+    viewerHasVerified: trustState.viewerHasVerified,
+    verifyCount: trustState.verifyCount,
+    communityVerified: trustState.communityVerified,
+    errorMessage: verifyError,
+    pending: verifyPending,
+  });
 
   return (
     <DetailContentBody
       view={view}
       reviews={reviews}
+      verify={verify}
       onSelectSibling={onSelectSibling}
+      onVerify={() => void runVerify(listingId, false)}
       className={className}
     />
   );
@@ -145,12 +241,16 @@ export function ExploreDetailContent({
 function DetailContentBody({
   view,
   reviews,
+  verify,
   onSelectSibling,
+  onVerify,
   className,
 }: {
   view: DetailContentView;
   reviews: ReviewsFeedView;
+  verify: VerifyCtaView;
   onSelectSibling: (siblingId: string) => void;
+  onVerify: () => void;
   className?: string;
 }) {
   return (
@@ -270,6 +370,8 @@ function DetailContentBody({
         {MAPS_CTA_LABEL}
       </a>
 
+      <DetailVerifyCta verify={verify} onVerify={onVerify} />
+
       {view.siblings.length > 0 ? (
         <section data-explore="detail-siblings" className="flex flex-col gap-2">
           <h3 className="font-heading text-sm font-semibold tracking-tight">
@@ -315,6 +417,84 @@ function DetailContentBody({
       ) : null}
 
       <DetailReviewsFeed reviews={reviews} />
+    </div>
+  );
+}
+
+function DetailVerifyCta({
+  verify,
+  onVerify,
+}: {
+  verify: VerifyCtaView;
+  onVerify: () => void;
+}) {
+  const buttonClass = cn(
+    "inline-flex h-11 w-full items-center justify-center rounded-lg border text-sm font-semibold transition-colors",
+    verify.mode === "verified"
+      ? "border-primary/30 bg-[#d0e7e9] text-[#006767]"
+      : "border-border bg-background text-foreground hover:bg-secondary/70",
+    verify.disabled && "cursor-not-allowed opacity-70",
+  );
+
+  return (
+    <div data-explore="detail-verify" className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <span
+          data-explore="detail-verify-count"
+          className="text-muted-foreground text-sm tabular-nums"
+        >
+          {verify.verifyCountLabel}
+        </span>
+        {verify.communityVerified ? (
+          <span
+            data-explore="detail-verify-community"
+            className="text-primary inline-flex items-center gap-1 text-sm font-medium"
+          >
+            <BadgeCheck className="size-4 shrink-0" aria-hidden />
+            {COMMUNITY_VERIFIED_LABEL}
+          </span>
+        ) : null}
+      </div>
+
+      {verify.mode === "gated" && verify.loginHref ? (
+        <Link
+          href={verify.loginHref}
+          data-explore="detail-verify-cta"
+          data-verify-mode="gated"
+          className={buttonClass}
+        >
+          {verify.label}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          data-explore="detail-verify-cta"
+          data-verify-mode={verify.mode}
+          className={buttonClass}
+          disabled={verify.disabled}
+          onClick={onVerify}
+        >
+          {verify.label}
+        </button>
+      )}
+
+      {verify.showRetry && verify.errorMessage ? (
+        <div
+          data-explore="detail-verify-error"
+          className="flex flex-col gap-1"
+          role="alert"
+        >
+          <p className="text-destructive text-sm">{verify.errorMessage}</p>
+          <button
+            type="button"
+            data-explore="detail-verify-retry"
+            className="text-primary self-start text-sm font-medium underline-offset-2 hover:underline"
+            onClick={onVerify}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

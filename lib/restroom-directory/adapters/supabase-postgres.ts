@@ -387,9 +387,51 @@ export function createSupabasePostgres(): PostgresPort {
     },
 
     async insertVerify(
-      _input: InsertVerifyInput,
+      input: InsertVerifyInput,
     ): Promise<InsertVerifyOutcome> {
-      notImplemented("insertVerify");
+      const supabase = await db();
+
+      const { data: restroom, error: restroomError } = await supabase
+        .from("restrooms")
+        .select("id, status, verify_count")
+        .eq("id", input.restroomId)
+        .maybeSingle();
+
+      if (restroomError || !restroom) {
+        return { status: "not_found" };
+      }
+
+      const row = restroom as Pick<RestroomRow, "id" | "status" | "verify_count">;
+      if (row.status === "archived") {
+        return { status: "not_found" };
+      }
+
+      const { error: insertError } = await supabase.from("verifies").insert({
+        restroom_id: input.restroomId,
+        user_id: input.userId,
+      });
+
+      if (insertError) {
+        // UNIQUE (restroom_id, user_id) → already verified.
+        if (insertError.code === "23505") {
+          return { status: "conflict" };
+        }
+        throw insertError;
+      }
+
+      const { data: updated } = await supabase
+        .from("restrooms")
+        .select("verify_count")
+        .eq("id", input.restroomId)
+        .maybeSingle();
+
+      const verifyCount =
+        updated && typeof (updated as { verify_count?: number }).verify_count ===
+          "number"
+          ? (updated as { verify_count: number }).verify_count
+          : row.verify_count + 1;
+
+      return { status: "inserted", verifyCount };
     },
 
     async upsertReview(

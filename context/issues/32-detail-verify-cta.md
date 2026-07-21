@@ -4,9 +4,9 @@
 
 **Blocked by:** 30 — Detail content, siblings, and Maps handoff CTA; 12 — `verifyRestroom` + community-verified threshold; 09 — Return-to-interrupted-flow and auth-gate utility
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Anonymous user tapping Verify is sent through auth-gate to `/login` and returns to verify
-- [ ] Signed-in user can verify once; second attempt shows already-verified state
-- [ ] Verify count updates; Community verified badge appears at ≥3
-- [ ] Error state preserves detail view with retry option
+- [x] Anonymous user tapping Verify is sent through auth-gate to `/login` and returns to verify
+- [x] Signed-in user can verify once; second attempt shows already-verified state
+- [x] Verify count updates; Community verified badge appears at ≥3
+- [x] Error state preserves detail view with retry option

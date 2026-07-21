@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { oauthCallbackHref } from "@/lib/auth/auth-gate";
+import { oauthCallbackHref } from "@/lib/auth/return-path";
 import { createClient } from "@/lib/supabase/client";
 
 type GoogleSignInButtonProps = {

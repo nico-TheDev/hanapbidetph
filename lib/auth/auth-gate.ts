@@ -1,42 +1,8 @@
 import type { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
+import { loginHref } from "./return-path";
 import { getUser, type SessionAuthClient } from "./session";
-
-/**
- * Same-origin relative path only. Blocks protocol-relative and absolute URLs
- * so OAuth `next` cannot be used for open redirects.
- */
-export function safeReturnPath(
-  candidate: string | null | undefined,
-  fallback = "/",
-): string {
-  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) {
-    return fallback;
-  }
-  return candidate;
-}
-
-/** Builds `/login` with the interrupted route preserved for post-sign-in return. */
-export function loginHref(returnTo: string): string {
-  return `/login?next=${encodeURIComponent(safeReturnPath(returnTo))}`;
-}
-
-/**
- * OAuth `redirectTo` for Google sign-in. Passes safe `next` through to
- * `/auth/callback` so post-login return can resume the interrupted route.
- */
-export function oauthCallbackHref(
-  origin: string,
-  next?: string | null,
-): string {
-  const url = new URL("/auth/callback", origin);
-  const returnTo = safeReturnPath(next);
-  if (returnTo !== "/") {
-    url.searchParams.set("next", returnTo);
-  }
-  return url.toString();
-}
 
 export type AuthGateResult =
   | { status: "ok"; user: User }
@@ -45,6 +11,9 @@ export type AuthGateResult =
 /**
  * Reusable auth gate for Add CR, Profile, Reviews, and detail contribution CTAs.
  * Anonymous callers get a `/login?next=…` redirect preserving the interrupted route.
+ *
+ * Server-only — do not import this module from Client Components. Use
+ * `@/lib/auth/return-path` for `loginHref` / `safeReturnPath` in the browser.
  */
 export async function resolveAuthGate(
   returnTo: string,

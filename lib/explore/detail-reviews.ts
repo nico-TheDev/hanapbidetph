@@ -1,4 +1,4 @@
-import { loginHref } from "@/lib/auth/auth-gate";
+import { loginHref } from "@/lib/auth/return-path";
 import type { Review } from "@/lib/restroom-directory/schemas";
 
 /** APPFLOW empty state for listings with no reviews. */

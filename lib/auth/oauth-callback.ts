@@ -1,4 +1,4 @@
-import { safeReturnPath } from "./auth-gate";
+import { safeReturnPath } from "./return-path";
 
 export type OAuthExchangeResult =
   | { ok: true }

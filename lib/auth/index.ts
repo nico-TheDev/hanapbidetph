@@ -5,10 +5,9 @@ export { resolveOAuthCallbackRedirect } from "./oauth-callback";
 export {
   loginHref,
   oauthCallbackHref,
-  requireAuth,
-  resolveAuthGate,
   safeReturnPath,
-} from "./auth-gate";
+} from "./return-path";
+export { requireAuth, resolveAuthGate } from "./auth-gate";
 export type { AuthGateResult } from "./auth-gate";
 export { requireAdmin, resolveAdminGate } from "./admin-gate";
 export type {

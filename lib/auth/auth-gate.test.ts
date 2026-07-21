@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { resolveAuthGate } from "./auth-gate";
 import {
   loginHref,
   oauthCallbackHref,
-  resolveAuthGate,
   safeReturnPath,
-} from "./auth-gate";
+} from "./return-path";
 
 describe("auth-gate return flow", () => {
   it("builds /login with the interrupted route preserved as next", () => {

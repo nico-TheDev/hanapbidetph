@@ -3,8 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { GoogleSignInButton } from "@/app/login/google-sign-in-button";
-import { safeReturnPath } from "@/lib/auth/auth-gate";
 import { loginErrorMessage } from "@/lib/auth/login-error";
+import { safeReturnPath } from "@/lib/auth/return-path";
 import { getUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
