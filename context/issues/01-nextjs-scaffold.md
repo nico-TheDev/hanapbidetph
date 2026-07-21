@@ -4,9 +4,9 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `pnpm dev` starts without errors
-- [ ] Tailwind + shadcn/ui configured with teal design tokens and brand fonts
-- [ ] `.env.example` lists all public and server-only env var names from TRD
-- [ ] TypeScript strict mode enabled
+- [x] `pnpm dev` starts without errors
+- [x] Tailwind + shadcn/ui configured with teal design tokens and brand fonts
+- [x] `.env.example` lists all public and server-only env var names from TRD
+- [x] TypeScript strict mode enabled
