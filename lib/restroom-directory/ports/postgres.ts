@@ -87,4 +87,10 @@ export interface PostgresPort {
    * null if the source restroom is missing or archived.
    */
   findActiveSiblings(restroomId: string): Promise<SiblingRestroom[] | null>;
+
+  /**
+   * Active restrooms at an establishment identified by Google `place_id`.
+   * Empty when the place is unknown or has no active listings.
+   */
+  findActiveRestroomsByPlaceId(placeId: string): Promise<SiblingRestroom[]>;
 }

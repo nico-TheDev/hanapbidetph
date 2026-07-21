@@ -1,4 +1,4 @@
-import type { AuthPort } from "./ports/auth";
+import type { Actor, AuthPort } from "./ports/auth";
 import type { GeolocationPort } from "./ports/geolocation";
 import type { PlacesPort } from "./ports/places";
 import type {
@@ -17,9 +17,11 @@ import type {
   RestroomDirectory,
 } from "./restroom-directory";
 import {
+  findExistingForPlaceInputSchema,
   getRestroomInputSchema,
   listNearbyInputSchema,
   listSiblingsInputSchema,
+  searchPlacesInputSchema,
   type AddRestroomInput,
   type AdminMergeInput,
   type AdminRemovePhotoInput,
@@ -113,9 +115,18 @@ export type RestroomDirectoryDeps = {
   geolocation: GeolocationPort;
 };
 
+function requireSignedIn(
+  actor: Actor,
+): Result<Extract<Actor, { role: "user" | "admin" }>, DirectoryError> {
+  if (actor.role === "guest") {
+    return err("unauthenticated");
+  }
+  return ok(actor);
+}
+
 /**
  * RestroomDirectory — wires adapter ports.
- * listNearby / getRestroom / listSiblings are implemented; remaining ops later.
+ * Read ops + searchPlaces / findExistingForPlace; remaining write ops later.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}
@@ -180,15 +191,40 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async searchPlaces(
-    _input: SearchPlacesInput,
+    input: SearchPlacesInput,
   ): Promise<Result<PlaceSuggestion[], DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireSignedIn(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = searchPlacesInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const suggestions = await this.deps.places.autocomplete(
+      parsed.data.query,
+      parsed.data.near,
+    );
+    return ok(suggestions);
   }
 
   async findExistingForPlace(
-    _input: FindExistingForPlaceInput,
+    input: FindExistingForPlaceInput,
   ): Promise<Result<SiblingRestroom[], DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireSignedIn(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = findExistingForPlaceInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const existing = await this.deps.postgres.findActiveRestroomsByPlaceId(
+      parsed.data.placeId,
+    );
+    return ok(existing);
   }
 
   async addRestroom(

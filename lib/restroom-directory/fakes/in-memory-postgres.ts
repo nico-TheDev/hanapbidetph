@@ -350,4 +350,20 @@ export class InMemoryPostgres implements PostgresPort {
       )
       .map(toSibling);
   }
+
+  async findActiveRestroomsByPlaceId(
+    placeId: string,
+  ): Promise<SiblingRestroom[]> {
+    const establishment = this.establishments.find(
+      (e) => e.placeId === placeId,
+    );
+    if (!establishment) return [];
+
+    return this.restrooms
+      .filter(
+        (r) =>
+          r.establishmentId === establishment.id && r.status === "active",
+      )
+      .map(toSibling);
+  }
 }
