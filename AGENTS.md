@@ -49,6 +49,11 @@ Use this order unless the task says otherwise.
    - Living project progress log (phase, goal, completed, in progress, next up).
    - Use as the basis for project status; update it for every ticket worked.
 
+10. `context/active_bugs.md`
+   - Active bug list that blocks commits until cleared (must-fix-before-commit only, not a backlog).
+   - Check before every commit; fix any listed bugs first.
+   - Exception: unrelated/out-of-scope bugs — fix in a separate small commit first, or move them into a ticket under `context/issues/` so they do not block forever.
+
 ## Ticket-First Workflow
 
 When implementing:
@@ -59,7 +64,7 @@ When implementing:
 4. Implement only the end-to-end behavior promised by that ticket.
 5. Run the relevant tests (and lints) for the changed behavior and confirm they pass.
 6. Update `context/PROGRESS_TRACKER.md` for the ticket (move to Completed, refresh Current Goal / Next Up). This file is the project progress basis — never skip it.
-7. Always commit after the ticket is implemented, the tracker is updated, and tests are passing. Do not commit if tests fail.
+7. Before any commit, read `context/active_bugs.md`. If it lists any open bugs, fix them and clear those entries first — do not commit while active bugs remain. Exception: if a listed bug is unrelated to the current ticket and out of scope, either fix it in a separate small commit first or move it into a ticket under `context/issues/` (and remove it from `active_bugs.md`) so the gate stays honest. Then commit only after the tracker is updated and tests are passing. Do not commit if tests fail.
 
 ## Domain Vocabulary (Do Not Drift)
 
@@ -100,4 +105,5 @@ If conflict remains, ask before implementing.
 - Preserve existing terminology and route structure from app-flow docs.
 - Treat `context/` as the planning source of truth for this repo.
 - Treat `PROGRESS_TRACKER.md` as the project progress basis; update it for every ticket started and finished.
-- After each ticket: update the progress tracker, confirm tests pass, then commit. Never leave a finished ticket uncommitted, and never commit with failing tests.
+- Always check `context/active_bugs.md` before committing; never commit while open bugs are listed there. Unrelated/out-of-scope bugs belong in a separate fix commit or a ticket — not as a permanent block in `active_bugs.md`.
+- After each ticket: update the progress tracker, confirm tests pass, confirm `active_bugs.md` is clear, then commit. Never leave a finished ticket uncommitted, and never commit with failing tests.
