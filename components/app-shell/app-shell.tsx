@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
+import { ExploreMap } from "@/components/explore/explore-map";
 import { ExploreTopBar } from "@/components/explore/explore-top-bar";
 import { MobileBottomTabs } from "@/components/app-shell/mobile-bottom-tabs";
 import { shouldShowExploreTopBar } from "@/lib/explore/top-bar";
@@ -38,18 +39,26 @@ export function AppShell({ children }: AppShellProps) {
         <section
           aria-label="Map"
           className={cn(
-            "from-primary/8 via-background to-secondary/30 relative min-h-0 flex-1 bg-linear-to-br",
-            showExploreTopBar ? "flex" : "hidden md:flex",
+            "relative min-h-0 flex-1",
+            showExploreTopBar
+              ? "flex"
+              : "from-primary/8 via-background to-secondary/30 hidden bg-linear-to-br md:flex",
           )}
           data-shell="map"
         >
           {showExploreTopBar ? <ExploreTopBar /> : null}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,color-mix(in_oklab,var(--color-primary)_12%,transparent),transparent_55%)]" />
-          <div className="relative flex h-full min-h-[50vh] flex-1 items-center justify-center p-8">
-            <p className="font-heading text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-              Map
-            </p>
-          </div>
+          {showExploreTopBar ? (
+            <ExploreMap />
+          ) : (
+            <>
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,color-mix(in_oklab,var(--color-primary)_12%,transparent),transparent_55%)]" />
+              <div className="relative flex h-full min-h-[50vh] flex-1 items-center justify-center p-8">
+                <p className="font-heading text-muted-foreground text-sm font-semibold tracking-wide uppercase">
+                  Map
+                </p>
+              </div>
+            </>
+          )}
         </section>
       </div>
 

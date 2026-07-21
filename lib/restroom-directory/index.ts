@@ -2,6 +2,7 @@ export {
   createRestroomDirectory,
   type RestroomDirectoryDeps,
 } from "./create-restroom-directory";
+export { BrowserGeolocation } from "./adapters/browser-geolocation";
 export { InMemoryAuth } from "./fakes/in-memory-auth";
 export { InMemoryGeolocation } from "./fakes/in-memory-geolocation";
 export { InMemoryPlaces } from "./fakes/in-memory-places";

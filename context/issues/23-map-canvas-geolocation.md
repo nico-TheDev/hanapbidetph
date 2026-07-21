@@ -4,9 +4,9 @@
 
 **Blocked by:** 21 — App shell: routes, mobile bottom tabs, desktop layout frame; 06 — `listNearby` with radius, filters, and pin-variant classification
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Map renders full-bleed behind UI chrome on `/`
-- [ ] Location granted centers map on user position
-- [ ] Location denied falls back to Metro Manila default; distances omitted until location available
-- [ ] Outside coverage shows coming-soon state with browse-Metro-Manila option
+- [x] Map renders full-bleed behind UI chrome on `/`
+- [x] Location granted centers map on user position
+- [x] Location denied falls back to Metro Manila default; distances omitted until location available
+- [x] Outside coverage shows coming-soon state with browse-Metro-Manila option
