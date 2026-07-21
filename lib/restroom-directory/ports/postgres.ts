@@ -219,6 +219,30 @@ export type DeleteRestroomOutcome =
   | { status: "deleted" }
   | { status: "not_found" };
 
+export type MergeRestroomsInput = {
+  loserId: string;
+  survivorId: string;
+};
+
+/**
+ * Admin merge: archive loser → survivor, reassign unique verifies/reviews,
+ * recalculate survivor aggregates. Missing either id → not_found.
+ */
+export type MergeRestroomsOutcome =
+  | { status: "merged" }
+  | { status: "not_found" };
+
+export type OpenReportRow = {
+  id: string;
+  restroomId: string;
+  reason: ReportReason;
+  details: string | null;
+  status: "open";
+  createdAt: string;
+  restroomName: string;
+  reporterDisplayName: string;
+};
+
 /**
  * Postgres / PostGIS persistence adapter port.
  * Ticket 02 keeps this thin; later tickets grow query/mutation methods.
@@ -323,4 +347,17 @@ export interface PostgresPort {
    * Missing → not_found.
    */
   deleteRestroom(restroomId: string): Promise<DeleteRestroomOutcome>;
+
+  /**
+   * Archives loser (`merged_into_id` → survivor), reassigns non-conflicting
+   * verifies/reviews, recalculates survivor verify/rating aggregates.
+   * Seed photos stay on each listing (no copy). Missing either → not_found.
+   */
+  mergeRestrooms(input: MergeRestroomsInput): Promise<MergeRestroomsOutcome>;
+
+  /**
+   * Open reports for the admin queue, oldest `created_at` first
+   * (matches `reports_open_queue_idx`).
+   */
+  findOpenReports(): Promise<OpenReportRow[]>;
 }

@@ -4,9 +4,9 @@
 
 **Blocked by:** 16 — `adminUpsertRestroom` + `adminSetStatus` + `adminRemovePhoto`; 14 — `reportRestroom` + disputed status transition
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Merge archives loser, points `merged_into_id` to survivor, recalculates aggregates
-- [ ] Duplicate verifiers/reviews on merge are skipped without violating UNIQUE constraints
-- [ ] `listOpenReports` returns open reports for admin queue
-- [ ] Vitest suite covers merge semantics and report queue
+- [x] Merge archives loser, points `merged_into_id` to survivor, recalculates aggregates
+- [x] Duplicate verifiers/reviews on merge are skipped without violating UNIQUE constraints
+- [x] `listOpenReports` returns open reports for admin queue
+- [x] Vitest suite covers merge semantics and report queue

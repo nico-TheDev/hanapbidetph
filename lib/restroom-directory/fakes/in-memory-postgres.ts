@@ -8,6 +8,9 @@ import type {
   InsertReportOutcome,
   InsertVerifyInput,
   InsertVerifyOutcome,
+  MergeRestroomsInput,
+  MergeRestroomsOutcome,
+  OpenReportRow,
   PostgresPort,
   RestroomDetailRow,
   ReviewRow,
@@ -89,6 +92,8 @@ export type SeedRestroom = {
   verifyCount: number;
   ratingAvg: number | null;
   ratingCount: number;
+  /** Set when this listing was merged into a survivor. */
+  mergedIntoId?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -267,6 +272,21 @@ export class InMemoryPostgres implements PostgresPort {
   /** Test helper: open reports for a restroom. */
   reportsFor(restroomId: string): SeedReport[] {
     return this.reports.filter((r) => r.restroomId === restroomId);
+  }
+
+  /** Test helper: restroom row by id. */
+  restroomById(restroomId: string): SeedRestroom | undefined {
+    return this.restrooms.find((r) => r.id === restroomId);
+  }
+
+  /** Test helper: verifies on a restroom. */
+  verifiesFor(restroomId: string): SeedVerify[] {
+    return this.verifies.filter((v) => v.restroomId === restroomId);
+  }
+
+  /** Test helper: reviews on a restroom. */
+  reviewsFor(restroomId: string): SeedReview[] {
+    return this.reviews.filter((r) => r.restroomId === restroomId);
   }
 
   /** Test helper: how many restroom rows exist (detect accidental creates). */
@@ -888,6 +908,98 @@ export class InMemoryPostgres implements PostgresPort {
     this.reports = this.reports.filter((r) => r.restroomId !== restroomId);
 
     return { status: "deleted" };
+  }
+
+  async mergeRestrooms(
+    input: MergeRestroomsInput,
+  ): Promise<MergeRestroomsOutcome> {
+    const loser = this.restrooms.find((r) => r.id === input.loserId);
+    const survivor = this.restrooms.find((r) => r.id === input.survivorId);
+    if (!loser || !survivor) {
+      return { status: "not_found" };
+    }
+
+    const survivorUserIds = new Set(
+      this.verifies
+        .filter((v) => v.restroomId === survivor.id)
+        .map((v) => v.userId),
+    );
+    for (const verify of this.verifies) {
+      if (verify.restroomId !== loser.id) continue;
+      if (survivorUserIds.has(verify.userId)) continue;
+      verify.restroomId = survivor.id;
+      survivorUserIds.add(verify.userId);
+    }
+
+    const survivorReviewers = new Set(
+      this.reviews
+        .filter((rev) => rev.restroomId === survivor.id)
+        .map((rev) => rev.userId),
+    );
+    for (const review of this.reviews) {
+      if (review.restroomId !== loser.id) continue;
+      if (survivorReviewers.has(review.userId)) continue;
+      review.restroomId = survivor.id;
+      survivorReviewers.add(review.userId);
+    }
+
+    const now = new Date().toISOString();
+    loser.status = "archived";
+    loser.mergedIntoId = survivor.id;
+    loser.updatedAt = now;
+
+    const loserListing = this.listings.find((l) => l.id === loser.id);
+    if (loserListing) {
+      loserListing.status = "archived";
+    }
+
+    this.recomputeRestroomVerifyCount(survivor.id);
+    this.recomputeRestroomRating(survivor.id);
+    survivor.updatedAt = now;
+
+    return { status: "merged" };
+  }
+
+  async findOpenReports(): Promise<OpenReportRow[]> {
+    return this.reports
+      .filter((r) => r.status === "open")
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      )
+      .map((report) => {
+        const restroom = this.restrooms.find((r) => r.id === report.restroomId);
+        const establishment = restroom
+          ? this.establishments.find((e) => e.id === restroom.establishmentId)
+          : undefined;
+        const reporter = this.profiles.find((p) => p.id === report.reporterId);
+        return {
+          id: report.id,
+          restroomId: report.restroomId,
+          reason: report.reason,
+          details: report.details,
+          status: "open" as const,
+          createdAt: report.createdAt,
+          restroomName: establishment?.name ?? "Unknown",
+          reporterDisplayName: reporter?.displayName ?? "Unknown",
+        };
+      });
+  }
+
+  /** Mirrors after_insert_verify / after_delete_verify verify_count sync. */
+  private recomputeRestroomVerifyCount(restroomId: string): void {
+    const restroom = this.restrooms.find((r) => r.id === restroomId);
+    if (!restroom) return;
+
+    const count = this.verifies.filter((v) => v.restroomId === restroomId)
+      .length;
+    restroom.verifyCount = count;
+
+    const listing = this.listings.find((l) => l.id === restroomId);
+    if (listing) {
+      listing.verifyCount = count;
+    }
   }
 
   /** Mirrors after_review_change → recompute_restroom_rating. */

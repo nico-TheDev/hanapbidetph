@@ -255,10 +255,14 @@ export const adminSetStatusInputSchema = z.object({
   status: restroomStatusSchema,
 });
 
-export const adminMergeInputSchema = z.object({
-  loserId: z.string().uuid(),
-  survivorId: z.string().uuid(),
-});
+export const adminMergeInputSchema = z
+  .object({
+    loserId: z.string().uuid(),
+    survivorId: z.string().uuid(),
+  })
+  .refine((value) => value.loserId !== value.survivorId, {
+    message: "loserId and survivorId must differ",
+  });
 
 export const adminRemovePhotoInputSchema = z.object({
   photoId: z.string().uuid(),

@@ -23,6 +23,7 @@ import {
   listSiblingsInputSchema,
   addRestroomInputSchema,
   adminRemovePhotoInputSchema,
+  adminMergeInputSchema,
   adminSetStatusInputSchema,
   adminUpsertRestroomInputSchema,
   deleteRestroomInputSchema,
@@ -147,7 +148,7 @@ function requireAdmin(
 
 /**
  * RestroomDirectory — wires adapter ports.
- * Read/write ops through ticket 15; admin upsert/status/photo through ticket 16.
+ * Read/write ops through ticket 16; admin merge + open report queue through ticket 17.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}
@@ -738,9 +739,26 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async adminMerge(
-    _input: AdminMergeInput,
+    input: AdminMergeInput,
   ): Promise<Result<void, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireAdmin(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = adminMergeInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const outcome = await this.deps.postgres.mergeRestrooms({
+      loserId: parsed.data.loserId,
+      survivorId: parsed.data.survivorId,
+    });
+    if (outcome.status === "not_found") {
+      return err("not_found");
+    }
+
+    return ok(undefined);
   }
 
   async adminRemovePhoto(
@@ -777,7 +795,12 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async listOpenReports(): Promise<Result<OpenReport[], DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireAdmin(actor);
+    if (!gated.ok) return gated;
+
+    const rows = await this.deps.postgres.findOpenReports();
+    return ok(rows);
   }
 }
 

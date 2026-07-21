@@ -8,7 +8,7 @@ Phase 5 — Admin
 
 ## Current Goal
 
-17 — `adminMerge` + `listOpenReports`
+18 — `/admin` layout, role gate, and left nav
 
 ## Completed
 
@@ -28,6 +28,7 @@ Phase 5 — Admin
 - 14 — `reportRestroom` + disputed status transition (open report → `disputed`; map exclusion; detail `isDisputed`)
 - 15 — Creator edit/delete with community-activity gate (`updateRestroom` / `deleteRestroom`)
 - 16 — Admin upsert / set status / remove photo (`adminUpsertRestroom`, `adminSetStatus`, `adminRemovePhoto`)
+- 17 — `adminMerge` + `listOpenReports` (archive loser + `merged_into_id`, skip UNIQUE conflicts, recalculate aggregates; open report queue by `created_at`)
 
 ## In Progress
 
@@ -35,7 +36,7 @@ _(none)_
 
 ## Next Up
 
-- 17 — `adminMerge` + `listOpenReports`
+- 18 — `/admin` layout, role gate, and left nav
 
 ## Open Questions
 
@@ -58,6 +59,7 @@ _(none)_
 - `reportRestroom` inserts an open report via PostgresPort `insertReport` and sets restroom `status = 'disputed'` (syncs nearby listing seed); guests get `unauthenticated`; detail remains readable with `isDisputed: true`
 - `updateRestroom` / `deleteRestroom`: creator may edit amenities/labels/seed photos or hard-delete only when no other-user verify/review exists; own verify does not gate; admin always allowed; guests → `unauthenticated`, non-creator → `forbidden`
 - `adminUpsertRestroom` / `adminSetStatus` / `adminRemovePhoto`: admin-only (guest → `unauthenticated`, user → `forbidden`); upsert seeds or edits any listing fields + optional status/photos; setStatus covers active/disputed/closed/archived; removePhoto soft-deletes restroom or review photos via `removed_at`
+- `adminMerge` / `listOpenReports`: admin-only; merge archives loser (`merged_into_id` → survivor), reassigns non-conflicting verifies/reviews, recalculates survivor aggregates (seed photos not copied); open reports queue oldest-first with establishment + reporter display names
 
 ## Session Notes
 
@@ -77,3 +79,4 @@ _(none)_
 - Ticket 14 done: `reportRestroom` auth-gated; PostgresPort `insertReport` opens report + sets `disputed`; `listNearby` drops pin, `getRestroom` returns `isDisputed: true`; Vitest covers guest denial, status transition, map exclusion, multi-report.
 - Ticket 15 done: `updateRestroom` / `deleteRestroom` creator-gated on other-user verify/review; optional seed-photo replace; admin override; Vitest covers allowed, blocked, own-verify carve-out, non-creator forbid, admin path.
 - Ticket 16 done: `adminUpsertRestroom` / `adminSetStatus` / `adminRemovePhoto` admin-gated; seed/edit any fields + status transitions + soft-remove photos; Vitest covers guest/user denial, upsert create/edit, all four statuses vs map visibility, restroom/review photo soft-delete.
+- Ticket 17 done: `adminMerge` / `listOpenReports` admin-gated; loser archived with `merged_into_id`, unique verifies/reviews reassigned (duplicates skipped), survivor aggregates recalculated; open report queue oldest-first; Vitest covers merge semantics, UNIQUE skip, queue ordering, auth gates.
