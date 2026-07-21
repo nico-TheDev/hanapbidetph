@@ -8,7 +8,7 @@ Phase 6 — End-user shell
 
 ## Current Goal
 
-24 — Map pins from `listNearby` (bidet / standard / unverified)
+25 — Radius selector wired to `listNearby`
 
 ## Completed
 
@@ -35,6 +35,7 @@ Phase 6 — End-user shell
 - 21 — App shell: routes, mobile bottom tabs, desktop layout frame
 - 22 — Explore top bar (brand, glass chrome, safe areas)
 - 23 — Google Map canvas + geolocation + Metro Manila fallback
+- 24 — Map pins from `listNearby` (bidet / standard / unverified)
 
 ## In Progress
 
@@ -42,7 +43,7 @@ _(none)_
 
 ## Next Up
 
-- 24 — Map pins from `listNearby` (bidet / standard / unverified)
+- 25 — Radius selector wired to `listNearby`
 
 ## Open Questions
 
@@ -72,6 +73,7 @@ _(none)_
 - End-user app shell: `(end-user)` route group wraps `/`, `/add`, `/profile`, `/reviews`, `/restrooms/[id]` with mobile bottom tabs (`md:hidden`) and desktop left sidebar + map frame; `/login` and `/admin` stay outside
 - Explore (`/`) top bar: glassmorphic overlay (backdrop blur + soft shadow) with HanapBidet brand, safe-area padding, and placeholder slots for radius / filters / theme; shown only on `/` so sidebar-only tabs stay clean; mobile Explore is map-first (sidebar list `md+` only)
 - Explore map canvas: `@vis.gl/react-google-maps` full-bleed under top bar; `BrowserGeolocation` adapter; denied/unavailable → `NEXT_PUBLIC_DEFAULT_MAP_CENTER_*` + enable-location banner (`distancesAvailable: false`); outside `NEXT_PUBLIC_LAUNCH_GEO` → coming-soon + Browse Metro Manila CTA
+- Explore map pins: `listNearby` → AdvancedMarker HTML pins; bidet Fresh Teal `#006767`, standard charcoal `#4f5e67`, Soft Aqua dashed overlay when unverified; tap selects (preview); Supabase `findActiveRestroomsNear` haversine stand-in for soft-launch scale; default radius 1 km
 
 ## Session Notes
 
@@ -98,3 +100,4 @@ _(none)_
 - Ticket 21 done: end-user shell under `app/(end-user)` — four mobile bottom tabs (Explore · Add CR · Profile · Reviews), desktop sidebar + map placeholders, listing detail route; admin/login layouts untouched; Vitest covers tab order + active-tab resolution.
 - Ticket 22 done: Explore top bar overlays map chrome on `/` only (glass + safe areas + brand + radius/filters/theme placeholders); mobile Explore map-first; Vitest covers visibility + layout contract.
 - Ticket 23 done: Explore Google Map canvas via `@vis.gl/react-google-maps` + `BrowserGeolocation`; Metro Manila fallback + enable-location banner; outside launch-geo coming-soon + Browse Metro Manila; Vitest covers `resolveMapViewState` / launch bounds / env / geolocation adapter (no live Maps API).
+- Ticket 24 done: Explore pins from `listNearby` (teal / charcoal / unverified dashed overlay + selected preview); `loadNearbyRestroomsAction` + Supabase nearby adapter; Vitest covers pin appearance, selection sync, and fake `listNearby` → pin models (no live Maps API).

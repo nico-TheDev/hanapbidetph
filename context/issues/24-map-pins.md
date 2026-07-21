@@ -4,9 +4,9 @@
 
 **Blocked by:** 23 — Google Map canvas + geolocation + Metro Manila fallback
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Pins appear at establishment coordinates from `listNearby`
-- [ ] Bidet pin is teal; standard pin is charcoal; unverified overlay visible when `verify_count < 3`
-- [ ] Pin tap selects the listing (visual selected state)
-- [ ] Map updates pins when nearby data changes
+- [x] Pins appear at establishment coordinates from `listNearby`
+- [x] Bidet pin is teal; standard pin is charcoal; unverified overlay visible when `verify_count < 3`
+- [x] Pin tap selects the listing (visual selected state)
+- [x] Map updates pins when nearby data changes

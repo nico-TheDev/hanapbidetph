@@ -32,6 +32,11 @@ import type {
   UpsertReviewPortInput,
 } from "@/lib/restroom-directory/ports/postgres";
 import type { NearbyRestroom, SiblingRestroom } from "@/lib/restroom-directory/schemas";
+import {
+  classifyPinVariant,
+  hasBidetFromType,
+  isCommunityVerified,
+} from "@/lib/restroom-directory/pin-variant";
 import { createClient } from "@/lib/supabase/server";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -86,8 +91,51 @@ function toEstablishment(row: EstablishmentRow): Establishment {
   };
 }
 
+/** Soft-launch stand-in for PostGIS `ST_DWithin` (haversine on lat/lng). */
+function haversineMeters(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6_371_000;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+type NearbyJoinRow = {
+  id: string;
+  establishment_id: string;
+  floor_area: string | null;
+  restroom_label: string | null;
+  bidet_type: RestroomDetailRow["bidetType"];
+  access_cost: RestroomDetailRow["accessCost"];
+  access_scope: RestroomDetailRow["accessScope"];
+  verify_count: number;
+  rating_avg: number | null;
+  rating_count: number;
+  establishments:
+    | { id: string; name: string; lat: number; lng: number }
+    | { id: string; name: string; lat: number; lng: number }[]
+    | null;
+};
+
+function establishmentFromJoin(
+  row: NearbyJoinRow,
+): { id: string; name: string; lat: number; lng: number } | null {
+  const est = row.establishments;
+  if (!est) return null;
+  return Array.isArray(est) ? (est[0] ?? null) : est;
+}
+
 /**
- * Supabase-backed PostgresPort covering admin list + upsert + report queue.
+ * Supabase-backed PostgresPort covering admin list + upsert + report queue
+ * and Explore `listNearby` (active restrooms near a point).
  * Other methods throw until later tickets wire them.
  */
 export function createSupabasePostgres(): PostgresPort {
@@ -97,9 +145,87 @@ export function createSupabasePostgres(): PostgresPort {
 
   return {
     async findActiveRestroomsNear(
-      _params: FindActiveNearParams,
+      params: FindActiveNearParams,
     ): Promise<NearbyRestroom[]> {
-      notImplemented("findActiveRestroomsNear");
+      const supabase = await db();
+      const { data, error } = await supabase
+        .from("restrooms")
+        .select(
+          "id, establishment_id, floor_area, restroom_label, bidet_type, access_cost, access_scope, verify_count, rating_avg, rating_count, establishments!inner(id, name, lat, lng)",
+        )
+        .eq("status", "active");
+
+      if (error || !data) {
+        return [];
+      }
+
+      const { lat, lng, radiusMeters, filters } = params;
+      const origin = { lat, lng };
+
+      return (data as NearbyJoinRow[])
+        .map((row) => {
+          const establishment = establishmentFromJoin(row);
+          if (!establishment) return null;
+
+          const hasBidet = hasBidetFromType(row.bidet_type);
+          const communityVerified = isCommunityVerified(row.verify_count);
+          const distanceMeters = haversineMeters(origin, {
+            lat: establishment.lat,
+            lng: establishment.lng,
+          });
+
+          const listing: NearbyRestroom = {
+            id: row.id,
+            establishmentId: row.establishment_id,
+            name: establishment.name,
+            lat: establishment.lat,
+            lng: establishment.lng,
+            distanceMeters,
+            bidetType: row.bidet_type,
+            hasBidet,
+            accessCost: row.access_cost,
+            accessScope: row.access_scope,
+            verifyCount: row.verify_count,
+            communityVerified,
+            ratingAvg: row.rating_avg,
+            ratingCount: row.rating_count,
+            pinVariant: classifyPinVariant(row.bidet_type, row.verify_count),
+            floorArea: row.floor_area,
+            restroomLabel: row.restroom_label,
+          };
+          return listing;
+        })
+        .filter((r): r is NearbyRestroom => r !== null)
+        .filter((r) => r.distanceMeters <= radiusMeters)
+        .filter((r) => {
+          if (!filters) return true;
+          if (
+            filters.hasBidet !== undefined &&
+            r.hasBidet !== filters.hasBidet
+          ) {
+            return false;
+          }
+          if (
+            filters.accessCost !== undefined &&
+            r.accessCost !== filters.accessCost
+          ) {
+            return false;
+          }
+          if (
+            filters.accessScope !== undefined &&
+            r.accessScope !== filters.accessScope
+          ) {
+            return false;
+          }
+          if (
+            filters.communityVerified !== undefined &&
+            r.communityVerified !== filters.communityVerified
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .sort((a, b) => a.distanceMeters - b.distanceMeters);
     },
 
     async findRestroomDetail(id: string): Promise<RestroomDetailRow | null> {

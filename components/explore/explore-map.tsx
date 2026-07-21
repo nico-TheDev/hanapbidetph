@@ -4,24 +4,47 @@ import { APIProvider, Map } from "@vis.gl/react-google-maps";
 import { useEffect, useState } from "react";
 
 import { ExploreMapBanner } from "@/components/explore/explore-map-banner";
+import { ExploreMapPins } from "@/components/explore/explore-map-pins";
+import { loadNearbyRestroomsAction } from "@/lib/explore/load-nearby-action";
 import { readMapEnvConfig } from "@/lib/explore/map-env";
 import {
   DEFAULT_EXPLORE_ZOOM,
   MAP_API_MISSING_COPY,
 } from "@/lib/explore/map-copy";
+import {
+  DEFAULT_NEARBY_RADIUS_METERS,
+  EXPLORE_MAP_ID,
+  selectMapPinId,
+  shouldLoadNearbyPins,
+  syncSelectedPinId,
+  toMapPinModels,
+} from "@/lib/explore/map-pins";
 import { resolveMapViewState } from "@/lib/explore/map-view";
 import { BrowserGeolocation } from "@/lib/restroom-directory/adapters/browser-geolocation";
 import type {
   GeolocationPort,
   GeolocationResult,
 } from "@/lib/restroom-directory/ports/geolocation";
-import type { LatLng } from "@/lib/restroom-directory/schemas";
+import type {
+  LatLng,
+  ListNearbyInput,
+  NearbyRestroom,
+} from "@/lib/restroom-directory/schemas";
 import { cn } from "@/lib/utils";
 
 type ExploreMapProps = {
   className?: string;
   /** Injected for tests / Storybook; defaults to browser geolocation. */
   geolocation?: GeolocationPort;
+  /**
+   * Controlled nearby listings. When omitted, loads via `loadNearby`
+   * (defaults to `listNearby` server action).
+   */
+  listings?: NearbyRestroom[];
+  /** Injected nearby loader (tests use RestroomDirectory fakes). */
+  loadNearby?: (input: ListNearbyInput) => Promise<NearbyRestroom[]>;
+  /** Radius in meters; default 1 km until ticket 25 wires the selector. */
+  radiusMeters?: number;
 };
 
 type CameraState = {
@@ -32,8 +55,15 @@ type CameraState = {
 /**
  * Full-bleed Google Map canvas for Explore. Requests location on mount;
  * denied/unavailable → Metro Manila fallback; outside launch geo → coming soon.
+ * Pins render from `listNearby` with bidet / standard / unverified variants.
  */
-export function ExploreMap({ className, geolocation }: ExploreMapProps) {
+export function ExploreMap({
+  className,
+  geolocation,
+  listings: controlledListings,
+  loadNearby = loadNearbyRestroomsAction,
+  radiusMeters = DEFAULT_NEARBY_RADIUS_METERS,
+}: ExploreMapProps) {
   const [config] = useState(() => readMapEnvConfig());
   const [browseMetroManila, setBrowseMetroManila] = useState(false);
   const [geoResult, setGeoResult] = useState<GeolocationResult>({
@@ -44,6 +74,8 @@ export function ExploreMap({ className, geolocation }: ExploreMapProps) {
     center: config.defaultCenter,
     zoom: DEFAULT_EXPLORE_ZOOM,
   });
+  const [fetchedListings, setFetchedListings] = useState<NearbyRestroom[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const view = resolveMapViewState({
     geolocation: geoResult,
@@ -51,6 +83,9 @@ export function ExploreMap({ className, geolocation }: ExploreMapProps) {
     launchGeo: config.launchGeo,
     browseMetroManila,
   });
+
+  const listings = controlledListings ?? fetchedListings;
+  const pins = toMapPinModels(listings, selectedId);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +109,57 @@ export function ExploreMap({ className, geolocation }: ExploreMapProps) {
     setCamera({ center: view.center, zoom: DEFAULT_EXPLORE_ZOOM });
   }, [view.center.lat, view.center.lng, view.centerSource]);
 
+  // Load nearby pins from `listNearby` when center / radius / banner allow.
+  useEffect(() => {
+    if (controlledListings !== undefined) {
+      return;
+    }
+    if (!ready) {
+      return;
+    }
+    if (!shouldLoadNearbyPins(view.banner)) {
+      setFetchedListings([]);
+      setSelectedId(null);
+      return;
+    }
+
+    let cancelled = false;
+    void loadNearby({
+      lat: view.center.lat,
+      lng: view.center.lng,
+      radiusMeters,
+    }).then((next) => {
+      if (cancelled) {
+        return;
+      }
+      setFetchedListings(next);
+      setSelectedId((current) => syncSelectedPinId(current, next));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    controlledListings,
+    ready,
+    view.banner,
+    view.center.lat,
+    view.center.lng,
+    view.centerSource,
+    radiusMeters,
+    loadNearby,
+  ]);
+
+  // Controlled listings: keep selection in sync when data changes.
+  useEffect(() => {
+    if (controlledListings === undefined) {
+      return;
+    }
+    setSelectedId((current) =>
+      syncSelectedPinId(current, controlledListings),
+    );
+  }, [controlledListings]);
+
   if (!config.googleMapsApiKey) {
     return (
       <div
@@ -96,10 +182,13 @@ export function ExploreMap({ className, geolocation }: ExploreMapProps) {
       data-map-ready={ready ? "true" : "false"}
       data-distances-available={view.distancesAvailable ? "true" : "false"}
       data-center-source={view.centerSource}
+      data-pin-count={pins.length}
+      data-selected-pin={selectedId ?? ""}
     >
       <APIProvider apiKey={config.googleMapsApiKey}>
         <Map
           className="absolute inset-0 h-full w-full"
+          mapId={EXPLORE_MAP_ID}
           defaultCenter={config.defaultCenter}
           defaultZoom={DEFAULT_EXPLORE_ZOOM}
           center={camera.center}
@@ -112,7 +201,12 @@ export function ExploreMap({ className, geolocation }: ExploreMapProps) {
               zoom: event.detail.zoom,
             });
           }}
-        />
+        >
+          <ExploreMapPins
+            pins={pins}
+            onSelect={(id) => setSelectedId(selectMapPinId(id))}
+          />
+        </Map>
       </APIProvider>
 
       <ExploreMapBanner
