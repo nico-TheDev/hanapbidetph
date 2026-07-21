@@ -3,6 +3,8 @@ import type {
   PinVariant,
 } from "@/lib/restroom-directory/schemas";
 
+export { DEFAULT_NEARBY_RADIUS_METERS } from "@/lib/explore/radius";
+
 /** Fresh Teal — bidet pin fill (UI_DESIGN / DESIGN.md). */
 export const PIN_BIDET_FILL = "#006767";
 
@@ -11,9 +13,6 @@ export const PIN_STANDARD_FILL = "#4f5e67";
 
 /** Soft Aqua — unverified dashed overlay stroke. */
 export const PIN_UNVERIFIED_STROKE = "#d0e7e9";
-
-/** Default Explore nearby radius until ticket 25 wires the selector. */
-export const DEFAULT_NEARBY_RADIUS_METERS = 1000;
 
 /** Cloud map style id required by Advanced Markers (Google demo id). */
 export const EXPLORE_MAP_ID = "DEMO_MAP_ID";

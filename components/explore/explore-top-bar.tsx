@@ -1,3 +1,7 @@
+"use client";
+
+import { ExploreRadiusSelector } from "@/components/explore/explore-radius-selector";
+import { useOptionalExploreSession } from "@/lib/explore/explore-session";
 import {
   EXPLORE_TOP_BAR_BRAND,
   EXPLORE_TOP_BAR_GLASS_CLASS,
@@ -8,9 +12,11 @@ import { cn } from "@/lib/utils";
 
 /**
  * Compact glass top bar over the Explore map.
- * Radius / filters / theme are layout placeholders until later tickets.
+ * Radius is wired to `listNearby`; filters / theme remain placeholders.
  */
 export function ExploreTopBar() {
+  const session = useOptionalExploreSession();
+
   return (
     <header
       aria-label="Explore controls"
@@ -31,7 +37,21 @@ export function ExploreTopBar() {
         </p>
 
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-          {EXPLORE_TOP_BAR_SLOTS.filter((slot) => slot !== "theme").map(
+          {session ? (
+            <ExploreRadiusSelector
+              valueMeters={session.radiusMeters}
+              onChange={session.setRadiusMeters}
+            />
+          ) : (
+            <div
+              aria-hidden
+              className="bg-secondary/80 text-muted-foreground h-8 shrink-0 rounded-full px-3 text-[11px] leading-8 font-medium"
+              data-slot="radius"
+            >
+              Radius
+            </div>
+          )}
+          {EXPLORE_TOP_BAR_SLOTS.filter((slot) => slot === "filters").map(
             (slot) => (
               <div
                 key={slot}
@@ -39,7 +59,7 @@ export function ExploreTopBar() {
                 className="bg-secondary/80 text-muted-foreground h-8 shrink-0 rounded-full px-3 text-[11px] leading-8 font-medium"
                 data-slot={slot}
               >
-                {slot === "radius" ? "Radius" : "Filters"}
+                Filters
               </div>
             ),
           )}

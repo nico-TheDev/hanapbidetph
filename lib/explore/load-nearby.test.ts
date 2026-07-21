@@ -89,3 +89,68 @@ describe("24 — loadNearbyRestroomsAction → map pins", () => {
     });
   });
 });
+
+describe("25 — radius change refetches listNearby", () => {
+  it("widening radius includes farther listings for pins and sidebar", async () => {
+    const postgres = new InMemoryPostgres();
+    // ~1.5 km north of origin (outside 1 km, inside 2 km)
+    const farLat = ORIGIN.lat + 0.014;
+    postgres.seedListings([
+      {
+        id: ID.bidet,
+        establishmentId: "11111111-1111-4111-8111-111111111111",
+        name: "Near CR",
+        lat: ORIGIN.lat,
+        lng: ORIGIN.lng,
+        bidetType: "manual_spray",
+        accessCost: "free",
+        accessScope: "public",
+        verifyCount: 3,
+        status: "active",
+      },
+      {
+        id: ID.standardUnverified,
+        establishmentId: "22222222-2222-4222-8222-222222222222",
+        name: "Far CR",
+        lat: farLat,
+        lng: ORIGIN.lng,
+        bidetType: "none",
+        accessCost: "free",
+        accessScope: "public",
+        verifyCount: 0,
+        status: "active",
+      },
+    ]);
+
+    setExploreDirectoryOverride(
+      createRestroomDirectory({
+        auth: new InMemoryAuth(),
+        places: new InMemoryPlaces(),
+        postgres,
+        storage: new InMemoryStorage(),
+        geolocation: new InMemoryGeolocation(),
+      }),
+    );
+
+    const atDefault = await loadNearbyRestroomsAction({
+      ...ORIGIN,
+      radiusMeters: 1000,
+    });
+    expect(atDefault.map((r) => r.id)).toEqual([ID.bidet]);
+
+    const atTwoKm = await loadNearbyRestroomsAction({
+      ...ORIGIN,
+      radiusMeters: 2000,
+    });
+    expect(atTwoKm.map((r) => r.id)).toEqual([
+      ID.bidet,
+      ID.standardUnverified,
+    ]);
+
+    const pins = toMapPinModels(atTwoKm, null);
+    expect(pins.map((p) => p.id)).toEqual([
+      ID.bidet,
+      ID.standardUnverified,
+    ]);
+  });
+});

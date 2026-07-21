@@ -4,9 +4,9 @@
 
 **Blocked by:** 24 — Map pins from `listNearby` (bidet / standard / unverified)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Radius selector shows current value and allows 0.5 / 1 / 2 / 5 km
-- [ ] Default radius is 1 km on first load
-- [ ] Changing radius refetches nearby listings and updates map pins
-- [ ] Distance displayed on listing rows when location is known
+- [x] Radius selector shows current value and allows 0.5 / 1 / 2 / 5 km
+- [x] Default radius is 1 km on first load
+- [x] Changing radius refetches nearby listings and updates map pins
+- [x] Distance displayed on listing rows when location is known

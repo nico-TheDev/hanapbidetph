@@ -1,7 +1,7 @@
 "use server";
 
 import { getExploreDirectory } from "@/lib/explore/directory";
-import { DEFAULT_NEARBY_RADIUS_METERS } from "@/lib/explore/map-pins";
+import { DEFAULT_NEARBY_RADIUS_METERS } from "@/lib/explore/radius";
 import type {
   ListNearbyInput,
   NearbyRestroom,

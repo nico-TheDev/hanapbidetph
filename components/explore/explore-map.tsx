@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { ExploreMapBanner } from "@/components/explore/explore-map-banner";
 import { ExploreMapPins } from "@/components/explore/explore-map-pins";
+import { useOptionalExploreSession } from "@/lib/explore/explore-session";
 import { loadNearbyRestroomsAction } from "@/lib/explore/load-nearby-action";
 import { readMapEnvConfig } from "@/lib/explore/map-env";
 import {
@@ -43,7 +44,7 @@ type ExploreMapProps = {
   listings?: NearbyRestroom[];
   /** Injected nearby loader (tests use RestroomDirectory fakes). */
   loadNearby?: (input: ListNearbyInput) => Promise<NearbyRestroom[]>;
-  /** Radius in meters; default 1 km until ticket 25 wires the selector. */
+  /** Radius in meters; defaults to session radius or 1 km. */
   radiusMeters?: number;
 };
 
@@ -56,14 +57,21 @@ type CameraState = {
  * Full-bleed Google Map canvas for Explore. Requests location on mount;
  * denied/unavailable → Metro Manila fallback; outside launch geo → coming soon.
  * Pins render from `listNearby` with bidet / standard / unverified variants.
+ * Radius changes (top-bar selector) refetch nearby and refresh pins.
  */
 export function ExploreMap({
   className,
   geolocation,
   listings: controlledListings,
   loadNearby = loadNearbyRestroomsAction,
-  radiusMeters = DEFAULT_NEARBY_RADIUS_METERS,
+  radiusMeters: radiusMetersProp,
 }: ExploreMapProps) {
+  const session = useOptionalExploreSession();
+  const setSessionListings = session?.setListings;
+  const setSessionDistancesAvailable = session?.setDistancesAvailable;
+  const radiusMeters =
+    radiusMetersProp ?? session?.radiusMeters ?? DEFAULT_NEARBY_RADIUS_METERS;
+
   const [config] = useState(() => readMapEnvConfig());
   const [browseMetroManila, setBrowseMetroManila] = useState(false);
   const [geoResult, setGeoResult] = useState<GeolocationResult>({
@@ -109,6 +117,11 @@ export function ExploreMap({
     setCamera({ center: view.center, zoom: DEFAULT_EXPLORE_ZOOM });
   }, [view.center.lat, view.center.lng, view.centerSource]);
 
+  // Publish distancesAvailable for sidebar distance labels.
+  useEffect(() => {
+    setSessionDistancesAvailable?.(view.distancesAvailable);
+  }, [setSessionDistancesAvailable, view.distancesAvailable]);
+
   // Load nearby pins from `listNearby` when center / radius / banner allow.
   useEffect(() => {
     if (controlledListings !== undefined) {
@@ -119,6 +132,7 @@ export function ExploreMap({
     }
     if (!shouldLoadNearbyPins(view.banner)) {
       setFetchedListings([]);
+      setSessionListings?.([]);
       setSelectedId(null);
       return;
     }
@@ -133,6 +147,7 @@ export function ExploreMap({
         return;
       }
       setFetchedListings(next);
+      setSessionListings?.(next);
       setSelectedId((current) => syncSelectedPinId(current, next));
     });
 
@@ -148,18 +163,19 @@ export function ExploreMap({
     view.centerSource,
     radiusMeters,
     loadNearby,
+    setSessionListings,
   ]);
 
-  // Controlled listings: keep selection in sync when data changes.
+  // Controlled listings: keep selection + session list in sync when data changes.
   useEffect(() => {
     if (controlledListings === undefined) {
       return;
     }
+    setSessionListings?.(controlledListings);
     setSelectedId((current) =>
       syncSelectedPinId(current, controlledListings),
     );
-  }, [controlledListings]);
-
+  }, [controlledListings, setSessionListings]);
   if (!config.googleMapsApiKey) {
     return (
       <div
@@ -182,6 +198,7 @@ export function ExploreMap({
       data-map-ready={ready ? "true" : "false"}
       data-distances-available={view.distancesAvailable ? "true" : "false"}
       data-center-source={view.centerSource}
+      data-radius-meters={radiusMeters}
       data-pin-count={pins.length}
       data-selected-pin={selectedId ?? ""}
     >

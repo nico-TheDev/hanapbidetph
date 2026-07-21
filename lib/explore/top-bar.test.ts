@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { RADIUS_SELECTOR_OPTIONS } from "./radius";
 import {
   EXPLORE_TOP_BAR_BRAND,
   EXPLORE_TOP_BAR_GLASS_CLASS,
@@ -27,6 +28,15 @@ describe("Explore top bar layout contract", () => {
 
   it("reserves placeholder slots for radius, filters, and theme toggle", () => {
     expect(EXPLORE_TOP_BAR_SLOTS).toEqual(["radius", "filters", "theme"]);
+  });
+
+  it("wires radius slot options to 0.5 / 1 / 2 / 5 km steps", () => {
+    expect(RADIUS_SELECTOR_OPTIONS).toEqual([
+      { valueMeters: 500, label: "0.5 km" },
+      { valueMeters: 1000, label: "1 km" },
+      { valueMeters: 2000, label: "2 km" },
+      { valueMeters: 5000, label: "5 km" },
+    ]);
   });
 
   it("uses glassmorphic chrome (backdrop blur + soft shadow) over the map", () => {

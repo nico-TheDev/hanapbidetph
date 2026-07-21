@@ -1,10 +1,15 @@
+"use client";
+
+import { ExploreNearbyList } from "@/components/explore/explore-nearby-list";
 import { PlaceholderPage } from "@/components/app-shell/placeholder-page";
 
 export default function ExplorePage() {
   return (
     <PlaceholderPage
       title="Nearby"
-      description="Listings near you will show here. Map pins and filters land in later tickets — browse stays anonymous."
-    />
+      description="Comfort rooms near you. Adjust the radius in the map top bar to look farther."
+    >
+      <ExploreNearbyList />
+    </PlaceholderPage>
   );
 }

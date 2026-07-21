@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ExploreMap } from "@/components/explore/explore-map";
 import { ExploreTopBar } from "@/components/explore/explore-top-bar";
 import { MobileBottomTabs } from "@/components/app-shell/mobile-bottom-tabs";
+import { ExploreSessionProvider } from "@/lib/explore/explore-session";
 import { shouldShowExploreTopBar } from "@/lib/explore/top-bar";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,7 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const showExploreTopBar = shouldShowExploreTopBar(pathname);
 
-  return (
+  const shell = (
     <div className="bg-background text-foreground flex min-h-dvh flex-col">
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside
@@ -65,4 +66,10 @@ export function AppShell({ children }: AppShellProps) {
       <MobileBottomTabs />
     </div>
   );
+
+  if (!showExploreTopBar) {
+    return shell;
+  }
+
+  return <ExploreSessionProvider>{shell}</ExploreSessionProvider>;
 }
