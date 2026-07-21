@@ -2,6 +2,8 @@
 
 import { BadgeCheck, Droplets } from "lucide-react";
 
+import { ExploreEmptyStateView } from "@/components/explore/explore-empty-state";
+import { resolveExploreEmptyState } from "@/lib/explore/empty-state";
 import { useExploreSession } from "@/lib/explore/explore-session";
 import {
   selectNearbyListRow,
@@ -12,6 +14,7 @@ import { cn } from "@/lib/utils";
 /**
  * Desktop sidebar nearby list from `listNearby` (distance-sorted).
  * Row click selects the listing and highlights the matching map pin.
+ * Empty nearby / filter-hidden states use APPFLOW copy (ticket 28).
  * Detail panel content lands in a later ticket.
  */
 export function ExploreNearbyList() {
@@ -20,17 +23,44 @@ export function ExploreNearbyList() {
     distancesAvailable,
     selectedId,
     setSelectedId,
+    filters,
+    mapBanner,
+    radiusMeters,
+    setRadiusMeters,
+    clearFilters,
+    nearbyReady,
+    isSignedIn,
   } = useExploreSession();
   const rows = toNearbyListRows(listings, {
     distancesAvailable,
     selectedId,
   });
 
+  const empty = resolveExploreEmptyState({
+    listingCount: listings.length,
+    filters,
+    banner: mapBanner,
+    radiusMeters,
+    isSignedIn,
+  });
+
   if (rows.length === 0) {
+    if (!nearbyReady || empty.kind === "none") {
+      return (
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          Listings near you will show here.
+        </p>
+      );
+    }
+
     return (
-      <p className="text-muted-foreground text-sm leading-relaxed">
-        Listings near you will show here. Widen the radius if nothing is close.
-      </p>
+      <ExploreEmptyStateView
+        empty={empty}
+        radiusMeters={radiusMeters}
+        onWidenRadius={setRadiusMeters}
+        onClearFilters={clearFilters}
+        variant="inline"
+      />
     );
   }
 

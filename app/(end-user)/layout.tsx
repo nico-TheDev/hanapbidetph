@@ -1,11 +1,14 @@
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell/app-shell";
+import { getUser } from "@/lib/auth/session";
 
-export default function EndUserLayout({
+export default async function EndUserLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
-  return <AppShell>{children}</AppShell>;
+  const user = await getUser();
+
+  return <AppShell isSignedIn={Boolean(user)}>{children}</AppShell>;
 }

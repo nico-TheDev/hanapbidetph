@@ -3,10 +3,15 @@
 import { APIProvider, Map } from "@vis.gl/react-google-maps";
 import { useEffect, useState } from "react";
 
+import { ExploreEmptyStateView } from "@/components/explore/explore-empty-state";
 import { ExploreMapBanner } from "@/components/explore/explore-map-banner";
 import { ExploreMapPins } from "@/components/explore/explore-map-pins";
+import { resolveExploreEmptyState } from "@/lib/explore/empty-state";
 import { useOptionalExploreSession } from "@/lib/explore/explore-session";
-import { toListNearbyFilters } from "@/lib/explore/filters";
+import {
+  DEFAULT_EXPLORE_FILTERS,
+  toListNearbyFilters,
+} from "@/lib/explore/filters";
 import { loadNearbyRestroomsAction } from "@/lib/explore/load-nearby-action";
 import { readMapEnvConfig } from "@/lib/explore/map-env";
 import {
@@ -22,6 +27,7 @@ import {
   toMapPinModels,
 } from "@/lib/explore/map-pins";
 import { resolveMapViewState } from "@/lib/explore/map-view";
+import type { RadiusStepMeters } from "@/lib/explore/radius";
 import { BrowserGeolocation } from "@/lib/restroom-directory/adapters/browser-geolocation";
 import type {
   GeolocationPort,
@@ -73,9 +79,14 @@ export function ExploreMap({
   const session = useOptionalExploreSession();
   const setSessionListings = session?.setListings;
   const setSessionDistancesAvailable = session?.setDistancesAvailable;
+  const setSessionMapBanner = session?.setMapBanner;
+  const setSessionNearbyReady = session?.setNearbyReady;
   const radiusMeters =
     radiusMetersProp ?? session?.radiusMeters ?? DEFAULT_NEARBY_RADIUS_METERS;
   const sessionFilters = session?.filters;
+  const clearFilters = session?.clearFilters;
+  const setRadiusMeters = session?.setRadiusMeters;
+  const isSignedIn = session?.isSignedIn ?? false;
 
   const [config] = useState(() => readMapEnvConfig());
   const [browseMetroManila, setBrowseMetroManila] = useState(false);
@@ -101,6 +112,20 @@ export function ExploreMap({
 
   const listings = controlledListings ?? fetchedListings;
   const pins = toMapPinModels(listings, selectedId);
+  const emptyFilters = sessionFilters ?? DEFAULT_EXPLORE_FILTERS;
+  const emptyRadiusMeters = (session?.radiusMeters ??
+    DEFAULT_NEARBY_RADIUS_METERS) as RadiusStepMeters;
+  const empty = resolveExploreEmptyState({
+    listingCount: listings.length,
+    filters: emptyFilters,
+    banner: view.banner,
+    radiusMeters,
+    isSignedIn,
+  });
+  const showEmptyOverlay =
+    ready &&
+    empty.kind !== "none" &&
+    (controlledListings !== undefined || Boolean(session?.nearbyReady));
 
   useEffect(() => {
     let cancelled = false;
@@ -124,14 +149,19 @@ export function ExploreMap({
     setCamera({ center: view.center, zoom: DEFAULT_EXPLORE_ZOOM });
   }, [view.center.lat, view.center.lng, view.centerSource]);
 
-  // Publish distancesAvailable for sidebar distance labels.
+  // Publish distancesAvailable + banner for sidebar empty / distance labels.
   useEffect(() => {
     setSessionDistancesAvailable?.(view.distancesAvailable);
   }, [setSessionDistancesAvailable, view.distancesAvailable]);
 
+  useEffect(() => {
+    setSessionMapBanner?.(view.banner);
+  }, [setSessionMapBanner, view.banner]);
+
   // Load nearby pins from `listNearby` when center / radius / filters / banner allow.
   useEffect(() => {
     if (controlledListings !== undefined) {
+      setSessionNearbyReady?.(true);
       return;
     }
     if (!ready) {
@@ -141,10 +171,12 @@ export function ExploreMap({
       setFetchedListings([]);
       setSessionListings?.([]);
       setSelectedId(null);
+      setSessionNearbyReady?.(true);
       return;
     }
 
     let cancelled = false;
+    setSessionNearbyReady?.(false);
     const nextFilters =
       filtersProp ??
       (sessionFilters ? toListNearbyFilters(sessionFilters) : undefined);
@@ -160,6 +192,7 @@ export function ExploreMap({
       setFetchedListings(next);
       setSessionListings?.(next);
       setSelectedId((current) => syncSelectedPinId(current, next));
+      setSessionNearbyReady?.(true);
     });
 
     return () => {
@@ -177,6 +210,7 @@ export function ExploreMap({
     sessionFilters,
     loadNearby,
     setSessionListings,
+    setSessionNearbyReady,
   ]);
 
   // Controlled listings: keep selection + session list in sync when data changes.
@@ -247,6 +281,26 @@ export function ExploreMap({
             : undefined
         }
       />
+
+      {showEmptyOverlay ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden"
+          data-chrome="explore-empty-overlay"
+        >
+          <ExploreEmptyStateView
+            empty={empty}
+            radiusMeters={emptyRadiusMeters}
+            onWidenRadius={
+              setRadiusMeters
+                ? (meters) => setRadiusMeters(meters)
+                : undefined
+            }
+            onClearFilters={clearFilters}
+            variant="overlay"
+            className="mb-16"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

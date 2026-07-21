@@ -4,9 +4,9 @@
 
 **Blocked by:** 26 — Filter chips wired to `listNearby`
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Zero results in radius shows helpful copy and suggest widening radius
-- [ ] Filters hiding all results emphasize "Clear filters" action
-- [ ] Empty state does not show broken map or phantom pins
-- [ ] Signed-in user sees optional CTA toward Add CR tab when map is empty in coverage
+- [x] Zero results in radius shows helpful copy and suggest widening radius
+- [x] Filters hiding all results emphasize "Clear filters" action
+- [x] Empty state does not show broken map or phantom pins
+- [x] Signed-in user sees optional CTA toward Add CR tab when map is empty in coverage

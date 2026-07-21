@@ -12,13 +12,15 @@ import { cn } from "@/lib/utils";
 
 type AppShellProps = {
   children: ReactNode;
+  /** Server-resolved auth — gates Add CR empty-state hint on Explore. */
+  isSignedIn?: boolean;
 };
 
 /**
  * End-user chrome: mobile bottom tabs; desktop left sidebar + map frame.
  * Explore top bar overlays the map on `/` only. Admin and login stay outside.
  */
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, isSignedIn = false }: AppShellProps) {
   const pathname = usePathname();
   const showExploreTopBar = shouldShowExploreTopBar(pathname);
 
@@ -71,5 +73,9 @@ export function AppShell({ children }: AppShellProps) {
     return shell;
   }
 
-  return <ExploreSessionProvider>{shell}</ExploreSessionProvider>;
+  return (
+    <ExploreSessionProvider isSignedIn={isSignedIn}>
+      {shell}
+    </ExploreSessionProvider>
+  );
 }
