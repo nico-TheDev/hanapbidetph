@@ -24,6 +24,15 @@ import {
   type RateFormView,
 } from "@/lib/explore/detail-rate";
 import {
+  DISPUTED_WARNING_COPY,
+  REPORT_ERROR_COPY,
+  applyReportSuccess,
+  shouldOpenReportForm,
+  toReportFormView,
+  toUnavailableView,
+  type ReportFormView,
+} from "@/lib/explore/detail-report";
+import {
   toReviewsFeedView,
   type ReviewsFeedView,
 } from "@/lib/explore/detail-reviews";
@@ -41,10 +50,12 @@ import {
   limitReviewPhotos,
 } from "@/lib/explore/compress-review-photo";
 import { loadRestroomDetailAction } from "@/lib/explore/load-detail-action";
+import { reportRestroomAction } from "@/lib/explore/report-restroom-action";
 import { upsertReviewAction } from "@/lib/explore/upsert-review-action";
 import { verifyRestroomAction } from "@/lib/explore/verify-restroom-action";
 import type {
   NearbyRestroom,
+  ReportReason,
   RestroomDetail,
   Review,
   SiblingRestroom,
@@ -56,7 +67,7 @@ type ExploreDetailContentProps = {
   nearby?: NearbyRestroom;
   distancesAvailable: boolean;
   isSignedIn?: boolean;
-  /** OAuth / deep-link resume: `action=verify` auto-submits; `action=rate` opens form. */
+  /** OAuth / deep-link resume: verify auto-submits; rate/report open forms. */
   resumeAction?: string | null;
   onSelectSibling: (siblingId: string) => void;
   className?: string;
@@ -81,6 +92,7 @@ type ViewerState = {
 
 type LoadState =
   | { status: "loading" }
+  | { status: "unavailable" }
   | { status: "error"; message: string }
   | {
       status: "ready";
@@ -99,7 +111,8 @@ const EMPTY_DRAFT: RateFormValues = {
 
 /**
  * Listing detail body: amenities, trust, photos, siblings, Maps handoff,
- * reviews feed (31), Verify CTA (32), and Rate form (33).
+ * reviews feed (31), Verify CTA (32), Rate form (33), Report + disputed /
+ * unavailable states (34).
  */
 export function ExploreDetailContent({
   listingId,
@@ -115,6 +128,7 @@ export function ExploreDetailContent({
   const [trust, setTrust] = useState<TrustState | null>(null);
   const [rating, setRating] = useState<RatingState | null>(null);
   const [viewer, setViewer] = useState<ViewerState>(null);
+  const [isDisputed, setIsDisputed] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [verifyPending, setVerifyPending] = useState(false);
   const [autoVerifyDone, setAutoVerifyDone] = useState(false);
@@ -124,12 +138,20 @@ export function ExploreDetailContent({
   const [rateDraft, setRateDraft] = useState<RateFormValues>(EMPTY_DRAFT);
   const [ratePhotoFiles, setRatePhotoFiles] = useState<File[]>([]);
   const [rateOpenedFromResume, setRateOpenedFromResume] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportPending, setReportPending] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason | null>(null);
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportOpenedFromResume, setReportOpenedFromResume] = useState(false);
 
   const load = useEffectEvent(async (id: string) => {
     setState({ status: "loading" });
     setTrust(null);
     setRating(null);
     setViewer(null);
+    setIsDisputed(false);
     setVerifyError(null);
     setVerifyPending(false);
     setAutoVerifyDone(false);
@@ -139,14 +161,22 @@ export function ExploreDetailContent({
     setRateDraft(EMPTY_DRAFT);
     setRatePhotoFiles([]);
     setRateOpenedFromResume(false);
+    setReportOpen(false);
+    setReportSubmitted(false);
+    setReportError(null);
+    setReportPending(false);
+    setReportReason(null);
+    setReportDetails("");
+    setReportOpenedFromResume(false);
     const result = await loadRestroomDetailAction(id);
     if (!result.ok) {
+      if (result.error === "not_found") {
+        setState({ status: "unavailable" });
+        return;
+      }
       setState({
         status: "error",
-        message:
-          result.error === "not_found"
-            ? "This listing is no longer available."
-            : "Couldn’t load listing details. Try again.",
+        message: "Couldn’t load listing details. Try again.",
       });
       return;
     }
@@ -167,6 +197,7 @@ export function ExploreDetailContent({
       reviews: result.detail.reviews,
     });
     setViewer(result.viewer);
+    setIsDisputed(result.detail.isDisputed);
     setState({
       status: "ready",
       detail: result.detail,
@@ -267,6 +298,50 @@ export function ExploreDetailContent({
     }
   });
 
+  const openReportForm = useEffectEvent(() => {
+    setReportOpen(true);
+    setReportError(null);
+    setReportSubmitted(false);
+  });
+
+  const runReportSubmit = useEffectEvent(async (id: string) => {
+    if (reportReason === null) {
+      setReportError("Choose a reason for this report.");
+      return;
+    }
+
+    setReportPending(true);
+    setReportError(null);
+
+    const result = await reportRestroomAction({
+      restroomId: id,
+      reason: reportReason,
+      details: reportDetails.trim() ? reportDetails.trim() : null,
+    });
+    setReportPending(false);
+
+    if (!result.ok) {
+      if (result.error === "unauthenticated" && result.loginHref) {
+        router.push(result.loginHref);
+        return;
+      }
+      if (result.error === "not_found") {
+        setState({ status: "unavailable" });
+        return;
+      }
+      setReportError(result.message || REPORT_ERROR_COPY);
+      return;
+    }
+
+    const disputed = applyReportSuccess({ isDisputed: result.isDisputed });
+    setIsDisputed(disputed.isDisputed);
+    setReportSubmitted(true);
+    setReportOpen(false);
+    if (shouldOpenReportForm(resumeAction)) {
+      router.replace(`/restrooms/${id}`);
+    }
+  });
+
   useEffect(() => {
     void load(listingId);
   }, [listingId]);
@@ -319,6 +394,28 @@ export function ExploreDetailContent({
     viewer,
   ]);
 
+  useEffect(() => {
+    if (state.status !== "ready") {
+      return;
+    }
+    if (
+      !isSignedIn ||
+      !shouldOpenReportForm(resumeAction) ||
+      reportOpenedFromResume ||
+      reportSubmitted
+    ) {
+      return;
+    }
+    setReportOpenedFromResume(true);
+    openReportForm();
+  }, [
+    state.status,
+    isSignedIn,
+    resumeAction,
+    reportOpenedFromResume,
+    reportSubmitted,
+  ]);
+
   if (state.status === "loading") {
     return (
       <p
@@ -327,6 +424,27 @@ export function ExploreDetailContent({
       >
         Loading listing…
       </p>
+    );
+  }
+
+  if (state.status === "unavailable") {
+    const unavailable = toUnavailableView();
+    return (
+      <div
+        className={cn("flex flex-col gap-3", className)}
+        data-explore="detail-unavailable"
+      >
+        <p className="text-foreground text-sm font-medium">
+          {unavailable.message}
+        </p>
+        <Link
+          href={unavailable.ctaHref}
+          data-explore="detail-unavailable-cta"
+          className="text-primary inline-flex h-11 w-full items-center justify-center rounded-lg border border-border bg-background text-sm font-semibold transition-colors hover:bg-secondary/70"
+        >
+          {unavailable.ctaLabel}
+        </Link>
+      </div>
     );
   }
 
@@ -397,6 +515,16 @@ export function ExploreDetailContent({
     errorMessage: rateError,
     pending: ratePending,
   });
+  const report = toReportFormView({
+    listingId: state.detail.id,
+    isSignedIn,
+    open: reportOpen,
+    reason: reportReason,
+    details: reportDetails,
+    submitted: reportSubmitted,
+    errorMessage: reportError,
+    pending: reportPending,
+  });
 
   return (
     <DetailContentBody
@@ -404,6 +532,8 @@ export function ExploreDetailContent({
       reviews={reviews}
       verify={verify}
       rate={rate}
+      report={report}
+      isDisputed={isDisputed}
       rateDraft={rateDraft}
       ratePhotoCount={ratePhotoFiles.length}
       onSelectSibling={onSelectSibling}
@@ -416,6 +546,14 @@ export function ExploreDetailContent({
       onRateDraftChange={setRateDraft}
       onRatePhotosChange={setRatePhotoFiles}
       onRateSubmit={() => void runRateSubmit(listingId)}
+      onOpenReport={openReportForm}
+      onCloseReport={() => {
+        setReportOpen(false);
+        setReportError(null);
+      }}
+      onReportReasonChange={setReportReason}
+      onReportDetailsChange={setReportDetails}
+      onReportSubmit={() => void runReportSubmit(listingId)}
       className={className}
     />
   );
@@ -426,6 +564,8 @@ function DetailContentBody({
   reviews,
   verify,
   rate,
+  report,
+  isDisputed,
   rateDraft,
   ratePhotoCount,
   onSelectSibling,
@@ -435,12 +575,19 @@ function DetailContentBody({
   onRateDraftChange,
   onRatePhotosChange,
   onRateSubmit,
+  onOpenReport,
+  onCloseReport,
+  onReportReasonChange,
+  onReportDetailsChange,
+  onReportSubmit,
   className,
 }: {
   view: DetailContentView;
   reviews: ReviewsFeedView;
   verify: VerifyCtaView;
   rate: RateFormView;
+  report: ReportFormView;
+  isDisputed: boolean;
   rateDraft: RateFormValues;
   ratePhotoCount: number;
   onSelectSibling: (siblingId: string) => void;
@@ -450,6 +597,11 @@ function DetailContentBody({
   onRateDraftChange: (next: RateFormValues) => void;
   onRatePhotosChange: (files: File[]) => void;
   onRateSubmit: () => void;
+  onOpenReport: () => void;
+  onCloseReport: () => void;
+  onReportReasonChange: (reason: ReportReason | null) => void;
+  onReportDetailsChange: (details: string) => void;
+  onReportSubmit: () => void;
   className?: string;
 }) {
   return (
@@ -458,6 +610,16 @@ function DetailContentBody({
       data-explore="detail-content"
       data-listing-id={view.listingId}
     >
+      {isDisputed ? (
+        <div
+          role="status"
+          data-explore="detail-disputed-banner"
+          className="rounded-xl border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
+        >
+          {DISPUTED_WARNING_COPY}
+        </div>
+      ) : null}
+
       {view.showPhotoPlaceholder ? (
         <div
           data-explore="detail-photo-placeholder"
@@ -580,6 +742,15 @@ function DetailContentBody({
         onDraftChange={onRateDraftChange}
         onPhotosChange={onRatePhotosChange}
         onSubmit={onRateSubmit}
+      />
+
+      <DetailReportForm
+        report={report}
+        onOpen={onOpenReport}
+        onClose={onCloseReport}
+        onReasonChange={onReportReasonChange}
+        onDetailsChange={onReportDetailsChange}
+        onSubmit={onReportSubmit}
       />
 
       {view.siblings.length > 0 ? (
@@ -957,6 +1128,154 @@ function DetailRateForm({
               <button
                 type="button"
                 data-explore="detail-rate-retry"
+                className="text-primary self-start text-sm font-medium underline-offset-2 hover:underline"
+                onClick={onSubmit}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+function DetailReportForm({
+  report,
+  onOpen,
+  onClose,
+  onReasonChange,
+  onDetailsChange,
+  onSubmit,
+}: {
+  report: ReportFormView;
+  onOpen: () => void;
+  onClose: () => void;
+  onReasonChange: (reason: ReportReason | null) => void;
+  onDetailsChange: (details: string) => void;
+  onSubmit: () => void;
+}) {
+  const buttonClass = cn(
+    "inline-flex h-11 w-full items-center justify-center rounded-lg border text-sm font-semibold transition-colors",
+    "border-border bg-background text-foreground hover:bg-secondary/70",
+  );
+
+  return (
+    <div data-explore="detail-report" className="flex flex-col gap-2">
+      {report.mode === "submitted" && report.confirmationMessage ? (
+        <p
+          data-explore="detail-report-confirmation"
+          className="bg-secondary/60 text-foreground rounded-xl px-3.5 py-3 text-sm font-medium"
+          role="status"
+        >
+          {report.confirmationMessage}
+        </p>
+      ) : null}
+
+      {report.mode === "gated" && report.loginHref ? (
+        <Link
+          href={report.loginHref}
+          data-explore="detail-report-cta"
+          data-report-mode="gated"
+          className={buttonClass}
+        >
+          {report.ctaLabel}
+        </Link>
+      ) : report.mode === "ready" && !report.formVisible ? (
+        <button
+          type="button"
+          data-explore="detail-report-cta"
+          data-report-mode={report.mode}
+          className={buttonClass}
+          onClick={onOpen}
+        >
+          {report.ctaLabel}
+        </button>
+      ) : null}
+
+      {report.formVisible ? (
+        <form
+          data-explore="detail-report-form"
+          className="border-border/70 bg-secondary/40 flex flex-col gap-3 rounded-xl border p-3.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="font-heading text-sm font-semibold tracking-tight">
+              {report.formTitle}
+            </h3>
+            <button
+              type="button"
+              data-explore="detail-report-cancel"
+              className="text-muted-foreground text-sm font-medium underline-offset-2 hover:underline"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+          </div>
+
+          <fieldset
+            data-explore="detail-report-reasons"
+            className="flex flex-col gap-2"
+          >
+            <legend className="text-foreground mb-1 text-sm font-medium">
+              Reason
+            </legend>
+            {report.reasonOptions.map((option) => (
+              <label
+                key={option.value}
+                className="flex cursor-pointer items-center gap-2 text-sm"
+              >
+                <input
+                  type="radio"
+                  name="report-reason"
+                  value={option.value}
+                  checked={report.reason === option.value}
+                  onChange={() => onReasonChange(option.value)}
+                  data-explore="detail-report-reason"
+                  data-reason={option.value}
+                />
+                {option.label}
+              </label>
+            ))}
+          </fieldset>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-foreground text-sm font-medium">
+              Details (optional)
+            </span>
+            <textarea
+              data-explore="detail-report-details"
+              rows={3}
+              value={report.details}
+              onChange={(event) => onDetailsChange(event.target.value)}
+              className="border-border bg-background min-h-20 w-full resize-y rounded-lg border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[#006767]/40"
+              placeholder="Anything that helps moderators"
+            />
+          </label>
+
+          <button
+            type="submit"
+            data-explore="detail-report-submit"
+            className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-gradient-to-r from-[#006767] to-[#008282] text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={!report.canSubmit}
+          >
+            {report.submitLabel}
+          </button>
+
+          {report.showRetry && report.errorMessage ? (
+            <div
+              data-explore="detail-report-error"
+              className="flex flex-col gap-1"
+              role="alert"
+            >
+              <p className="text-destructive text-sm">{report.errorMessage}</p>
+              <button
+                type="button"
+                data-explore="detail-report-retry"
                 className="text-primary self-start text-sm font-medium underline-offset-2 hover:underline"
                 onClick={onSubmit}
               >

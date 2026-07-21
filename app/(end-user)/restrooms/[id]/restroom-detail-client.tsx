@@ -10,7 +10,7 @@ type RestroomDetailClientProps = {
   resumeAction: string | null;
 };
 
-/** Deep-link listing detail with Verify / Rate resume (tickets 32–33). */
+/** Deep-link listing detail with Verify / Rate / Report resume (tickets 32–34). */
 export function RestroomDetailClient({
   listingId,
   isSignedIn,

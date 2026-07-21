@@ -8,7 +8,7 @@ Phase 6 — End-user shell
 
 ## Current Goal
 
-34 — Report flow and disputed/unavailable states on detail
+35 — `/add` auth gate and multi-step page shell
 
 ## Completed
 
@@ -45,12 +45,13 @@ Phase 6 — End-user shell
 - 31 — Reviews feed on detail (read-only)
 - 32 — Verify CTA on listing detail
 - 33 — Rate/review form on listing detail
+- 34 — Report flow and disputed/unavailable states on detail
 
 ## In Progress
 
 ## Next Up
 
-- 34 — Report flow and disputed/unavailable states on detail
+- 35 — `/add` auth gate and multi-step page shell
 
 ## Open Questions
 
@@ -85,7 +86,7 @@ Phase 6 — End-user shell
 - Explore filters: four Soft Aqua / teal chips (Has bidet, Free/Paid cycle, Community verified only, Public/Needs patronage cycle); multi-select → `listNearby` filters; horizontal scroll on mobile; session shares filters with map refetch
 - Explore desktop sidebar: scrollable distance-ordered `listNearby` rows (name, distance when known, bidet + community-verified icons); row click shares `selectedId` with map pin highlight via `ExploreSession`
 - Explore empty states: in-coverage zero pins → “No restrooms nearby” + Widen radius / Clear filters CTAs; filters-hide-all emphasizes Clear filters; outside coverage keeps ticket-23 coming-soon (no conflicting nearby empty); signed-in Add CR hint; mobile map overlay + desktop sidebar; empty list → no phantom pins
-- Explore detail shell: mobile bottom sheet (peek 240px → half → expanded 95%, 40×4 drag handle + expand CTA) over map; desktop detail panel in left sidebar with map still visible; pin tap / row select opens shell via `selectedId`; close returns to map-only Explore; body from `getRestroom` / `listSiblings` (amenities, trust, photos, siblings, Maps handoff, read-only reviews feed, auth-gated Verify CTA with OAuth resume on `/restrooms/[id]?action=verify`, auth-gated Rate form with upsert + feed refresh on `?action=rate`)
+- Explore detail shell: mobile bottom sheet (peek 240px → half → expanded 95%, 40×4 drag handle + expand CTA) over map; desktop detail panel in left sidebar with map still visible; pin tap / row select opens shell via `selectedId`; close returns to map-only Explore; body from `getRestroom` / `listSiblings` (amenities, trust, photos, siblings, Maps handoff, read-only reviews feed, auth-gated Verify CTA with OAuth resume on `/restrooms/[id]?action=verify`, auth-gated Rate form with upsert + feed refresh on `?action=rate`, auth-gated Report reason picker on `?action=report`, disputed warning banner, archived/missing → unavailable + home CTA)
 - Auth return-path helpers (`loginHref` / `safeReturnPath` / `oauthCallbackHref`) live in client-safe `lib/auth/return-path` so Explore CTAs can build `/login?next=…` without importing server-only `auth-gate`
 
 ## Session Notes
@@ -123,4 +124,5 @@ Phase 6 — End-user shell
 - Ticket 31 done: detail read-only reviews feed newest-first (attribution, stars, checkbox chips, comment, review photos); empty “No feedback yet — be the first to rate” with guest sign-in hint via `loginHref`; Vitest detail-reviews suite green; post-submit refresh deferred to ticket 33.
 - Ticket 32 done: detail “Verify this CR” CTA auth-gated via `loginHref(/restrooms/{id}?action=verify)`; `verifyRestroomAction` + Supabase `insertVerify`; one verify/user → Verified; count + Community verified ≥3 update in-place; error keeps detail + Retry; OAuth resume auto-verifies; Vitest detail-verify + action suites green.
 - Ticket 33 done: detail Rate form auth-gated via `loginHref(/restrooms/{id}?action=rate)`; stars + cleanliness/amenities/access tri-state + comment + ≤3 client-compressed photos; `upsertReviewAction` + edit prefill; feed newest-first + rating summary refresh; Supabase `upsertReview` / review photos + storage upload; Vitest detail-rate + action + compress suites green.
+- Ticket 34 done: detail Report CTA auth-gated via `loginHref(/restrooms/{id}?action=report)`; reason picker (doesn’t exist / wrong location / permanently closed / inappropriate photos) + optional details → `reportRestroomAction`; confirmation + disputed banner; archived/missing → “This restroom isn't available” + Back to Explore; Vitest detail-report + action suites green.
 - Unrelated active_bugs (mobile map height; desktop page nav) moved to issues 39–40 so the commit gate stays honest.

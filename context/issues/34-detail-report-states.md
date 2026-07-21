@@ -4,9 +4,9 @@
 
 **Blocked by:** 30 — Detail content, siblings, and Maps handoff CTA; 14 — `reportRestroom` + disputed status transition; 09 — Return-to-interrupted-flow and auth-gate utility
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Report flow is auth-gated and captures reason + optional details
-- [ ] Successful report shows confirmation; listing may become disputed
-- [ ] Disputed listing accessed via direct link shows warning banner
-- [ ] Archived/missing listing shows unavailable message with home CTA
+- [x] Report flow is auth-gated and captures reason + optional details
+- [x] Successful report shows confirmation; listing may become disputed
+- [x] Disputed listing accessed via direct link shows warning banner
+- [x] Archived/missing listing shows unavailable message with home CTA
