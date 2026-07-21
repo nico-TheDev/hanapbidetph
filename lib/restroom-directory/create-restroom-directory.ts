@@ -22,6 +22,9 @@ import {
   listNearbyInputSchema,
   listSiblingsInputSchema,
   addRestroomInputSchema,
+  adminRemovePhotoInputSchema,
+  adminSetStatusInputSchema,
+  adminUpsertRestroomInputSchema,
   deleteRestroomInputSchema,
   reportRestroomInputSchema,
   searchPlacesInputSchema,
@@ -130,10 +133,21 @@ function requireSignedIn(
   return ok(actor);
 }
 
+function requireAdmin(
+  actor: Actor,
+): Result<Extract<Actor, { role: "admin" }>, DirectoryError> {
+  if (actor.role === "guest") {
+    return err("unauthenticated");
+  }
+  if (actor.role !== "admin") {
+    return err("forbidden");
+  }
+  return ok(actor);
+}
+
 /**
  * RestroomDirectory — wires adapter ports.
- * Read ops + write path through creator edit/delete gates;
- * admin ops remain stubbed for later tickets.
+ * Read/write ops through ticket 15; admin upsert/status/photo through ticket 16.
  */
 class StubRestroomDirectory implements RestroomDirectory {
   constructor(private readonly deps: RestroomDirectoryDeps) {}
@@ -562,15 +576,165 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async adminUpsertRestroom(
-    _input: AdminUpsertRestroomInput,
+    input: AdminUpsertRestroomInput,
   ): Promise<Result<RestroomDetail, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireAdmin(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = adminUpsertRestroomInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const data = parsed.data;
+    let establishment =
+      await this.deps.postgres.findEstablishmentByPlaceId(data.placeId);
+
+    if (!establishment) {
+      establishment = await this.deps.postgres.createEstablishment({
+        placeId: data.placeId,
+        name: data.name,
+        formattedAddress: data.formattedAddress ?? null,
+        lat: data.lat,
+        lng: data.lng,
+      });
+    } else {
+      await this.deps.postgres.updateEstablishment({
+        establishmentId: establishment.id,
+        name: data.name,
+        formattedAddress: data.formattedAddress ?? null,
+        lat: data.lat,
+        lng: data.lng,
+      });
+      establishment = {
+        ...establishment,
+        name: data.name,
+        formattedAddress: data.formattedAddress ?? null,
+        lat: data.lat,
+        lng: data.lng,
+      };
+    }
+
+    let restroomId = data.restroomId;
+
+    if (restroomId) {
+      const existing = await this.deps.postgres.findRestroomDetail(restroomId);
+      if (!existing) {
+        return err("not_found");
+      }
+
+      const outcome = await this.deps.postgres.updateRestroomFields({
+        restroomId,
+        establishmentId: establishment.id,
+        floorArea: data.floorArea ?? null,
+        restroomLabel: data.restroomLabel ?? null,
+        bidetType: data.bidetType,
+        hasTissue: data.hasTissue,
+        hasSoap: data.hasSoap,
+        hasHandDrying: data.hasHandDrying,
+        accessCost: data.accessCost,
+        accessScope: data.accessScope,
+        allowArchived: true,
+      });
+      if (outcome.status === "not_found") {
+        return err("not_found");
+      }
+
+      if (data.status !== undefined) {
+        const statusOutcome = await this.deps.postgres.setRestroomStatus({
+          restroomId,
+          status: data.status,
+        });
+        if (statusOutcome.status === "not_found") {
+          return err("not_found");
+        }
+      }
+
+      if (data.photos.length > 0) {
+        await this.deps.postgres.softRemoveRestroomPhotos(restroomId);
+        for (const [sortOrder, photo] of data.photos.entries()) {
+          const photoId = crypto.randomUUID();
+          const storagePath = `${restroomId}/${photoId}.webp`;
+          await this.deps.storage.upload({
+            bucket: "restroom-photos",
+            path: storagePath,
+            data: photo.data,
+            contentType: photo.contentType,
+          });
+          await this.deps.postgres.createRestroomPhoto({
+            id: photoId,
+            restroomId,
+            uploadedBy: gated.value.userId,
+            storagePath,
+            sortOrder,
+          });
+        }
+      }
+    } else {
+      const created = await this.deps.postgres.createRestroom({
+        establishmentId: establishment.id,
+        createdBy: gated.value.userId,
+        floorArea: data.floorArea ?? null,
+        restroomLabel: data.restroomLabel ?? null,
+        bidetType: data.bidetType,
+        hasTissue: data.hasTissue,
+        hasSoap: data.hasSoap,
+        hasHandDrying: data.hasHandDrying,
+        accessCost: data.accessCost,
+        accessScope: data.accessScope,
+        status: data.status ?? "active",
+      });
+      restroomId = created.id;
+
+      for (const [sortOrder, photo] of data.photos.entries()) {
+        const photoId = crypto.randomUUID();
+        const storagePath = `${restroomId}/${photoId}.webp`;
+        await this.deps.storage.upload({
+          bucket: "restroom-photos",
+          path: storagePath,
+          data: photo.data,
+          contentType: photo.contentType,
+        });
+        await this.deps.postgres.createRestroomPhoto({
+          id: photoId,
+          restroomId,
+          uploadedBy: gated.value.userId,
+          storagePath,
+          sortOrder,
+        });
+      }
+    }
+
+    const row = await this.deps.postgres.findRestroomDetail(restroomId);
+    if (!row) {
+      return err("not_found");
+    }
+
+    return ok(toRestroomDetail(row, this.deps.storage));
   }
 
   async adminSetStatus(
-    _input: AdminSetStatusInput,
+    input: AdminSetStatusInput,
   ): Promise<Result<void, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireAdmin(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = adminSetStatusInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const outcome = await this.deps.postgres.setRestroomStatus({
+      restroomId: parsed.data.restroomId,
+      status: parsed.data.status,
+    });
+    if (outcome.status === "not_found") {
+      return err("not_found");
+    }
+
+    return ok(undefined);
   }
 
   async adminMerge(
@@ -580,9 +744,26 @@ class StubRestroomDirectory implements RestroomDirectory {
   }
 
   async adminRemovePhoto(
-    _input: AdminRemovePhotoInput,
+    input: AdminRemovePhotoInput,
   ): Promise<Result<void, DirectoryError>> {
-    return err("not_implemented");
+    const actor = await this.deps.auth.getActor();
+    const gated = requireAdmin(actor);
+    if (!gated.ok) return gated;
+
+    const parsed = adminRemovePhotoInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return err("validation_error");
+    }
+
+    const outcome = await this.deps.postgres.softRemovePhoto({
+      photoId: parsed.data.photoId,
+      kind: parsed.data.kind,
+    });
+    if (outcome.status === "not_found") {
+      return err("not_found");
+    }
+
+    return ok(undefined);
   }
 
   async listMyReviews(): Promise<Result<Review[], DirectoryError>> {

@@ -90,6 +90,8 @@ export type CreateRestroomInput = {
   hasHandDrying: boolean;
   accessCost: AccessCost;
   accessScope: AccessScope;
+  /** Defaults to active when omitted (user add flow). */
+  status?: RestroomStatus;
 };
 
 export type CreateRestroomPhotoInput = {
@@ -173,11 +175,45 @@ export type UpdateRestroomFieldsInput = {
   hasHandDrying?: boolean;
   accessCost?: AccessCost;
   accessScope?: AccessScope;
+  /** When set, reassigns the listing to this establishment. */
+  establishmentId?: string;
+  /**
+   * When true, allow patching archived rows (admin upsert).
+   * Creator update path leaves this false / omitted.
+   */
+  allowArchived?: boolean;
 };
 
 export type UpdateRestroomFieldsOutcome =
   | { status: "updated" }
   | { status: "not_found" };
+
+export type SetRestroomStatusInput = {
+  restroomId: string;
+  status: RestroomStatus;
+};
+
+export type SetRestroomStatusOutcome =
+  | { status: "updated" }
+  | { status: "not_found" };
+
+export type SoftRemovePhotoInput = {
+  photoId: string;
+  kind: "restroom" | "review";
+};
+
+export type SoftRemovePhotoOutcome =
+  | { status: "removed" }
+  | { status: "not_found" };
+
+export type UpdateEstablishmentInput = {
+  establishmentId: string;
+  name?: string;
+  formattedAddress?: string | null;
+  lat?: number;
+  lng?: number;
+  placeId?: string;
+};
 
 export type DeleteRestroomOutcome =
   | { status: "deleted" }
@@ -254,7 +290,7 @@ export interface PostgresPort {
 
   /**
    * Patches amenities / labels on an existing restroom.
-   * Archived / missing → not_found.
+   * Missing → not_found. Archived → not_found unless allowArchived.
    */
   updateRestroomFields(
     input: UpdateRestroomFieldsInput,
@@ -262,6 +298,25 @@ export interface PostgresPort {
 
   /** Soft-removes published restroom seed photos (sets removed_at). */
   softRemoveRestroomPhotos(restroomId: string): Promise<void>;
+
+  /**
+   * Sets lifecycle status (active / disputed / closed / archived).
+   * Missing → not_found. Works on archived rows (admin reopen / seed).
+   */
+  setRestroomStatus(
+    input: SetRestroomStatusInput,
+  ): Promise<SetRestroomStatusOutcome>;
+
+  /**
+   * Soft-deletes one restroom or review photo via removed_at.
+   * Missing / already removed → not_found.
+   */
+  softRemovePhoto(
+    input: SoftRemovePhotoInput,
+  ): Promise<SoftRemovePhotoOutcome>;
+
+  /** Patches establishment display fields (admin seed/edit). */
+  updateEstablishment(input: UpdateEstablishmentInput): Promise<void>;
 
   /**
    * Hard-deletes a restroom and its seed photos / verifies / reviews / reports.

@@ -11,7 +11,12 @@ import type {
   PostgresPort,
   RestroomDetailRow,
   ReviewRow,
+  SetRestroomStatusInput,
+  SetRestroomStatusOutcome,
+  SoftRemovePhotoInput,
+  SoftRemovePhotoOutcome,
   StoredPhotoRow,
+  UpdateEstablishmentInput,
   UpdateRestroomFieldsInput,
   UpdateRestroomFieldsOutcome,
   UpsertReviewOutcome,
@@ -269,6 +274,17 @@ export class InMemoryPostgres implements PostgresPort {
     return this.restrooms.length;
   }
 
+  /** Test helper: restroom/review photo row including soft-delete timestamp. */
+  photoById(
+    photoId: string,
+    kind: "restroom" | "review",
+  ): SeedRestroomPhoto | SeedReviewPhoto | undefined {
+    if (kind === "restroom") {
+      return this.restroomPhotos.find((p) => p.id === photoId);
+    }
+    return this.reviewPhotos.find((p) => p.id === photoId);
+  }
+
   async findActiveRestroomsNear(
     params: FindActiveNearParams,
   ): Promise<NearbyRestroom[]> {
@@ -479,6 +495,10 @@ export class InMemoryPostgres implements PostgresPort {
   ): Promise<{ id: string }> {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
+    const status = input.status ?? "active";
+    const establishment = this.establishments.find(
+      (e) => e.id === input.establishmentId,
+    );
     this.restrooms.push({
       id,
       establishmentId: input.establishmentId,
@@ -491,13 +511,31 @@ export class InMemoryPostgres implements PostgresPort {
       hasHandDrying: input.hasHandDrying,
       accessCost: input.accessCost,
       accessScope: input.accessScope,
-      status: "active",
+      status,
       verifyCount: 0,
       ratingAvg: null,
       ratingCount: 0,
       createdAt: now,
       updatedAt: now,
     });
+    if (establishment && status === "active") {
+      this.listings.push({
+        id,
+        establishmentId: establishment.id,
+        name: establishment.name,
+        lat: establishment.lat,
+        lng: establishment.lng,
+        bidetType: input.bidetType,
+        accessCost: input.accessCost,
+        accessScope: input.accessScope,
+        status,
+        verifyCount: 0,
+        ratingAvg: null,
+        ratingCount: 0,
+        floorArea: input.floorArea,
+        restroomLabel: input.restroomLabel,
+      });
+    }
     return { id };
   }
 
@@ -678,10 +716,16 @@ export class InMemoryPostgres implements PostgresPort {
     input: UpdateRestroomFieldsInput,
   ): Promise<UpdateRestroomFieldsOutcome> {
     const restroom = this.restrooms.find((r) => r.id === input.restroomId);
-    if (!restroom || restroom.status === "archived") {
+    if (!restroom) {
+      return { status: "not_found" };
+    }
+    if (restroom.status === "archived" && !input.allowArchived) {
       return { status: "not_found" };
     }
 
+    if (input.establishmentId !== undefined) {
+      restroom.establishmentId = input.establishmentId;
+    }
     if (input.floorArea !== undefined) restroom.floorArea = input.floorArea;
     if (input.restroomLabel !== undefined) {
       restroom.restroomLabel = input.restroomLabel;
@@ -700,6 +744,17 @@ export class InMemoryPostgres implements PostgresPort {
 
     const listing = this.listings.find((l) => l.id === input.restroomId);
     if (listing) {
+      if (input.establishmentId !== undefined) {
+        listing.establishmentId = input.establishmentId;
+        const establishment = this.establishments.find(
+          (e) => e.id === input.establishmentId,
+        );
+        if (establishment) {
+          listing.name = establishment.name;
+          listing.lat = establishment.lat;
+          listing.lng = establishment.lng;
+        }
+      }
       if (input.bidetType !== undefined) listing.bidetType = input.bidetType;
       if (input.accessCost !== undefined) listing.accessCost = input.accessCost;
       if (input.accessScope !== undefined) {
@@ -719,6 +774,91 @@ export class InMemoryPostgres implements PostgresPort {
     for (const photo of this.restroomPhotos) {
       if (photo.restroomId === restroomId && photo.removedAt === null) {
         photo.removedAt = now;
+      }
+    }
+  }
+
+  async setRestroomStatus(
+    input: SetRestroomStatusInput,
+  ): Promise<SetRestroomStatusOutcome> {
+    const restroom = this.restrooms.find((r) => r.id === input.restroomId);
+    if (!restroom) {
+      return { status: "not_found" };
+    }
+
+    restroom.status = input.status;
+    restroom.updatedAt = new Date().toISOString();
+
+    const listing = this.listings.find((l) => l.id === input.restroomId);
+    if (listing) {
+      listing.status = input.status;
+    } else if (input.status === "active") {
+      const establishment = this.establishments.find(
+        (e) => e.id === restroom.establishmentId,
+      );
+      if (establishment) {
+        this.listings.push({
+          id: restroom.id,
+          establishmentId: establishment.id,
+          name: establishment.name,
+          lat: establishment.lat,
+          lng: establishment.lng,
+          bidetType: restroom.bidetType,
+          accessCost: restroom.accessCost,
+          accessScope: restroom.accessScope,
+          status: "active",
+          verifyCount: restroom.verifyCount,
+          ratingAvg: restroom.ratingAvg,
+          ratingCount: restroom.ratingCount,
+          floorArea: restroom.floorArea,
+          restroomLabel: restroom.restroomLabel,
+        });
+      }
+    }
+
+    return { status: "updated" };
+  }
+
+  async softRemovePhoto(
+    input: SoftRemovePhotoInput,
+  ): Promise<SoftRemovePhotoOutcome> {
+    const now = new Date().toISOString();
+    if (input.kind === "restroom") {
+      const photo = this.restroomPhotos.find((p) => p.id === input.photoId);
+      if (!photo || photo.removedAt !== null) {
+        return { status: "not_found" };
+      }
+      photo.removedAt = now;
+      return { status: "removed" };
+    }
+
+    const photo = this.reviewPhotos.find((p) => p.id === input.photoId);
+    if (!photo || photo.removedAt !== null) {
+      return { status: "not_found" };
+    }
+    photo.removedAt = now;
+    return { status: "removed" };
+  }
+
+  async updateEstablishment(input: UpdateEstablishmentInput): Promise<void> {
+    const establishment = this.establishments.find(
+      (e) => e.id === input.establishmentId,
+    );
+    if (!establishment) return;
+
+    if (input.placeId !== undefined) establishment.placeId = input.placeId;
+    if (input.name !== undefined) establishment.name = input.name;
+    if (input.formattedAddress !== undefined) {
+      establishment.formattedAddress = input.formattedAddress;
+    }
+    if (input.lat !== undefined) establishment.lat = input.lat;
+    if (input.lng !== undefined) establishment.lng = input.lng;
+
+    for (const listing of this.listings) {
+      if (listing.establishmentId === establishment.id) {
+        listing.name = establishment.name;
+        listing.lat = establishment.lat;
+        listing.lng = establishment.lng;
       }
     }
   }
