@@ -6,12 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * Completes Google OAuth (PKCE): exchanges `code` for a session stored in
  * HTTP-only cookies. Tokens never appear in the redirect URL.
+ * Optional `next` (same-origin path) resumes the interrupted gated route.
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
+  const next = searchParams.get("next");
 
   if (error || !code) {
     return NextResponse.redirect(
@@ -20,6 +22,7 @@ export async function GET(request: Request) {
         code,
         error,
         errorDescription,
+        next,
       }),
     );
   }
@@ -35,6 +38,7 @@ export async function GET(request: Request) {
       code,
       error: null,
       errorDescription: null,
+      next,
       exchange: exchangeError
         ? { ok: false, message: exchangeError.message || "exchange_failed" }
         : { ok: true },

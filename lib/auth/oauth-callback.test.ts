@@ -18,6 +18,20 @@ describe("resolveOAuthCallbackRedirect", () => {
     );
   });
 
+  it("preserves next on OAuth error so retry can resume the interrupted flow", () => {
+    const redirect = resolveOAuthCallbackRedirect({
+      origin,
+      code: null,
+      error: "access_denied",
+      errorDescription: "The user denied access",
+      next: "/reviews",
+    });
+
+    expect(redirect).toBe(
+      "http://localhost:3000/login?error=access_denied&next=%2Freviews",
+    );
+  });
+
   it("redirects to /login when the authorization code is missing", () => {
     const redirect = resolveOAuthCallbackRedirect({
       origin,
@@ -56,5 +70,47 @@ describe("resolveOAuthCallbackRedirect", () => {
 
     expect(redirect).toBe("http://localhost:3000/");
     expect(redirect).not.toMatch(/access_token|refresh_token|token=/i);
+  });
+
+  it("returns to the interrupted route after successful Google sign-in", () => {
+    const redirect = resolveOAuthCallbackRedirect({
+      origin,
+      code: "auth-code",
+      error: null,
+      errorDescription: null,
+      next: "/add",
+      exchange: { ok: true },
+    });
+
+    expect(redirect).toBe("http://localhost:3000/add");
+    expect(redirect).not.toMatch(/access_token|refresh_token|token=/i);
+  });
+
+  it("returns to a detail contribution action after successful sign-in", () => {
+    const redirect = resolveOAuthCallbackRedirect({
+      origin,
+      code: "auth-code",
+      error: null,
+      errorDescription: null,
+      next: "/restrooms/abc?action=verify",
+      exchange: { ok: true },
+    });
+
+    expect(redirect).toBe(
+      "http://localhost:3000/restrooms/abc?action=verify",
+    );
+  });
+
+  it("ignores unsafe next values and falls back to home on success", () => {
+    const redirect = resolveOAuthCallbackRedirect({
+      origin,
+      code: "auth-code",
+      error: null,
+      errorDescription: null,
+      next: "https://evil.example/phish",
+      exchange: { ok: true },
+    });
+
+    expect(redirect).toBe("http://localhost:3000/");
   });
 });

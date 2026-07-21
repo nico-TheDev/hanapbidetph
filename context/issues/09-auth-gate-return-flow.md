@@ -4,8 +4,8 @@
 
 **Blocked by:** 08 — Supabase Auth setup, `/login`, `/auth/callback`, session middleware
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Anonymous user hitting a gated route is redirected to `/login` with return URL preserved
-- [ ] After successful Google sign-in, user lands on the originally requested route or action
-- [ ] Auth-gate utility is reusable across Add CR, Profile, Reviews, and detail contribution CTAs
+- [x] Anonymous user hitting a gated route is redirected to `/login` with return URL preserved
+- [x] After successful Google sign-in, user lands on the originally requested route or action
+- [x] Auth-gate utility is reusable across Add CR, Profile, Reviews, and detail contribution CTAs

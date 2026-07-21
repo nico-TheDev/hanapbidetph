@@ -3,9 +3,15 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { oauthCallbackHref } from "@/lib/auth/auth-gate";
 import { createClient } from "@/lib/supabase/client";
 
-export function GoogleSignInButton() {
+type GoogleSignInButtonProps = {
+  /** Interrupted route from `/login?next=…` (already sanitized by the page). */
+  next?: string;
+};
+
+export function GoogleSignInButton({ next }: GoogleSignInButtonProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,7 +20,7 @@ export function GoogleSignInButton() {
     setError(null);
 
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = oauthCallbackHref(window.location.origin, next);
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",

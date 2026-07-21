@@ -8,7 +8,7 @@ Phase 3 — Auth
 
 ## Current Goal
 
-09 — Return-to-interrupted-flow and auth-gate utility.
+10 — `searchPlaces` + `findExistingForPlace`
 
 ## Completed
 
@@ -20,12 +20,15 @@ Phase 3 — Auth
 - 06 — `listNearby` with radius, filters, pin-variant classification, disputed exclusion
 - 07 — `getRestroom` detail + `listSiblings` (photos, reviews newest-first, disputed flag, archived/missing → not_found)
 - 08 — Google auth via Supabase (`/login`, `/auth/callback`, session proxy, `getSession`/`getUser`)
+- 09 — Return-to-interrupted-flow and auth-gate utility (`safeReturnPath`, `loginHref`, `oauthCallbackHref`, `resolveAuthGate`/`requireAuth`, `next` through OAuth callback)
 
 ## In Progress
 
+_(none)_
+
 ## Next Up
 
-- 09 — Return-to-interrupted-flow and auth-gate utility
+- 10 — `searchPlaces` + `findExistingForPlace`
 
 ## Open Questions
 
@@ -40,6 +43,7 @@ Phase 3 — Auth
 - `listNearby` uses PostgresPort `findActiveRestroomsNear` (PostGIS `ST_DWithin` pattern); in-memory fake haversine stand-in seeds domain rows, excludes non-`active`, applies filters, and computes `hasBidet` / `communityVerified` / `pinVariant`
 - `getRestroom` / `listSiblings` use PostgresPort `findRestroomDetail` + `findActiveSiblings`; directory maps public photo URLs via StoragePort, sets `isDisputed` from status, treats archived/missing as `not_found`; siblings are other `active` restrooms at the same establishment
 - Google OAuth via Supabase Auth + `@supabase/ssr`: JWT in HTTP-only cookies; root `proxy.ts` refreshes session; `/login` + `/auth/callback` (PKCE code exchange); `getSession` / `getUser` helpers for Server Actions
+- Auth gate: gated surfaces call `resolveAuthGate` / `requireAuth` with the interrupted path; anonymous → `/login?next=…`; Google OAuth `redirectTo` carries safe `next` to `/auth/callback`; success redirects to that same-origin path (open redirects rejected)
 
 ## Session Notes
 
@@ -51,3 +55,4 @@ Phase 3 — Auth
 - Ticket 06 done: `listNearby` Vitest suite (`list-nearby.test.ts`) covers radius ordering, disputed/non-active exclusion, four filters + combo, pin variants (`bidet` / `standard` / `*_unverified`), and 1 km default / 5 km max validation; `InMemoryPostgres.seedListings` + `pin-variant.ts` helpers.
 - Ticket 07 done: `get-restroom-siblings.test.ts` covers full detail (establishment, amenities, aggregates, non-removed photos, reviews newest-first), disputed `isDisputed`, archived/missing `not_found`, active siblings excluding current / disputed / archived / other establishments; PostgresPort grew `findRestroomDetail` + `findActiveSiblings`.
 - Ticket 08 done: `/login` (“Continue with Google”), `/auth/callback` PKCE exchange into HTTP-only cookies (no tokens in redirect URL), `proxy.ts` session refresh, `lib/auth` `getSession`/`getUser` + failure/cancel retry messaging; Vitest auth suite green.
+- Ticket 09 done: reusable `resolveAuthGate`/`requireAuth` + `loginHref`/`oauthCallbackHref`/`safeReturnPath`; `/login` + OAuth callback preserve `next` end-to-end; signed-in users on `/login` redirect to return path; Vitest covers anonymous redirect, authenticated pass-through, success return, and open-redirect rejection.
