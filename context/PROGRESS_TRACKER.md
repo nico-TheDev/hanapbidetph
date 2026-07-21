@@ -8,7 +8,7 @@ Phase 5 — Admin
 
 ## Current Goal
 
-19 — Admin listings seed/edit page
+20 — Admin report queue page
 
 ## Completed
 
@@ -30,6 +30,7 @@ Phase 5 — Admin
 - 16 — Admin upsert / set status / remove photo (`adminUpsertRestroom`, `adminSetStatus`, `adminRemovePhoto`)
 - 17 — `adminMerge` + `listOpenReports` (archive loser + `merged_into_id`, skip UNIQUE conflicts, recalculate aggregates; open report queue by `created_at`)
 - 18 — `/admin` layout, role gate, and left nav (`profiles.is_admin`; Listings + Reports; non-admin → `/`)
+- 19 — Admin listings seed/edit page (table + form; `listAdminRestrooms` + `adminUpsertRestroom`)
 
 ## In Progress
 
@@ -37,7 +38,6 @@ _(none)_
 
 ## Next Up
 
-- 19 — Admin listings seed/edit page
 - 20 — Admin report queue page
 
 ## Open Questions
@@ -63,6 +63,7 @@ _(none)_
 - `adminUpsertRestroom` / `adminSetStatus` / `adminRemovePhoto`: admin-only (guest → `unauthenticated`, user → `forbidden`); upsert seeds or edits any listing fields + optional status/photos; setStatus covers active/disputed/closed/archived; removePhoto soft-deletes restroom or review photos via `removed_at`
 - `adminMerge` / `listOpenReports`: admin-only; merge archives loser (`merged_into_id` → survivor), reassigns non-conflicting verifies/reviews, recalculates survivor aggregates (seed photos not copied); open reports queue oldest-first with establishment + reporter display names
 - `/admin` layout: separate left-nav chrome (Listings / Reports); `requireAdmin` / `resolveAdminGate` enforce `profiles.is_admin` (non-admin and anonymous redirect to `/`)
+- Admin listings page: table of all statuses via `listAdminRestrooms`; seed/edit form persists through `adminUpsertRestroom` (session AuthPort + Supabase Postgres adapter for list/upsert path)
 
 ## Session Notes
 
@@ -84,3 +85,4 @@ _(none)_
 - Ticket 16 done: `adminUpsertRestroom` / `adminSetStatus` / `adminRemovePhoto` admin-gated; seed/edit any fields + status transitions + soft-remove photos; Vitest covers guest/user denial, upsert create/edit, all four statuses vs map visibility, restroom/review photo soft-delete.
 - Ticket 17 done: `adminMerge` / `listOpenReports` admin-gated; loser archived with `merged_into_id`, unique verifies/reviews reassigned (duplicates skipped), survivor aggregates recalculated; open report queue oldest-first; Vitest covers merge semantics, UNIQUE skip, queue ordering, auth gates.
 - Ticket 18 done: `/admin` distinct layout (left nav Listings `/admin/listings` + Reports `/admin/reports`); `resolveAdminGate`/`requireAdmin` via `profiles.is_admin`; anonymous and non-admin → `/`; Vitest admin-gate suite green.
+- Ticket 19 done: `/admin/listings` table (name/status/verify count) + seed/edit form; `listAdminRestrooms` admin-gated; form saves via `adminUpsertRestroom`; Vitest covers list authz + form parse/create/edit persistence.

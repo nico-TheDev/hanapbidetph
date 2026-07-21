@@ -3,6 +3,7 @@ import type {
   AddRestroomInput,
   AdminMergeInput,
   AdminRemovePhotoInput,
+  AdminRestroomSummary,
   AdminSetStatusInput,
   AdminUpsertRestroomInput,
   DeleteRestroomInput,
@@ -102,4 +103,8 @@ export interface RestroomDirectory {
   listMyContributions(): Promise<Result<MyContribution[], DirectoryError>>;
 
   listOpenReports(): Promise<Result<OpenReport[], DirectoryError>>;
+
+  listAdminRestrooms(): Promise<
+    Result<AdminRestroomSummary[], DirectoryError>
+  >;
 }

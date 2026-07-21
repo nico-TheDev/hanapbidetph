@@ -1,6 +1,7 @@
 import type {
   AccessCost,
   AccessScope,
+  AdminRestroomSummary,
   BidetType,
   Establishment,
   NearbyRestroom,
@@ -360,4 +361,10 @@ export interface PostgresPort {
    * (matches `reports_open_queue_idx`).
    */
   findOpenReports(): Promise<OpenReportRow[]>;
+
+  /**
+   * All restroom listings for the admin seed/edit table
+   * (any status), newest `updated_at` first.
+   */
+  findAdminRestroomSummaries(): Promise<AdminRestroomSummary[]>;
 }

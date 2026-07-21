@@ -34,6 +34,7 @@ import {
 import type {
   AccessCost,
   AccessScope,
+  AdminRestroomSummary,
   BidetType,
   Establishment,
   NearbyRestroom,
@@ -984,6 +985,41 @@ export class InMemoryPostgres implements PostgresPort {
           restroomName: establishment?.name ?? "Unknown",
           reporterDisplayName: reporter?.displayName ?? "Unknown",
         };
+      });
+  }
+
+  async findAdminRestroomSummaries(): Promise<AdminRestroomSummary[]> {
+    return this.restrooms
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
+      .flatMap((restroom) => {
+        const establishment = this.establishments.find(
+          (e) => e.id === restroom.establishmentId,
+        );
+        if (!establishment) return [];
+        return [
+          {
+            id: restroom.id,
+            name: establishment.name,
+            status: restroom.status,
+            verifyCount: restroom.verifyCount,
+            floorArea: restroom.floorArea,
+            restroomLabel: restroom.restroomLabel,
+            placeId: establishment.placeId,
+            formattedAddress: establishment.formattedAddress,
+            lat: establishment.lat,
+            lng: establishment.lng,
+            bidetType: restroom.bidetType,
+            hasTissue: restroom.hasTissue,
+            hasSoap: restroom.hasSoap,
+            hasHandDrying: restroom.hasHandDrying,
+            accessCost: restroom.accessCost,
+            accessScope: restroom.accessScope,
+          },
+        ];
       });
   }
 

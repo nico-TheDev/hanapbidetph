@@ -35,6 +35,7 @@ import {
   type AddRestroomInput,
   type AdminMergeInput,
   type AdminRemovePhotoInput,
+  type AdminRestroomSummary,
   type AdminSetStatusInput,
   type AdminUpsertRestroomInput,
   type DeleteRestroomInput,
@@ -800,6 +801,17 @@ class StubRestroomDirectory implements RestroomDirectory {
     if (!gated.ok) return gated;
 
     const rows = await this.deps.postgres.findOpenReports();
+    return ok(rows);
+  }
+
+  async listAdminRestrooms(): Promise<
+    Result<AdminRestroomSummary[], DirectoryError>
+  > {
+    const actor = await this.deps.auth.getActor();
+    const gated = requireAdmin(actor);
+    if (!gated.ok) return gated;
+
+    const rows = await this.deps.postgres.findAdminRestroomSummaries();
     return ok(rows);
   }
 }

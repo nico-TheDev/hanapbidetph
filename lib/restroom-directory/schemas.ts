@@ -281,6 +281,26 @@ export const openReportSchema = reportSchema.extend({
   reporterDisplayName: z.string(),
 });
 
+/** Admin listings table + edit-form seed row. */
+export const adminRestroomSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  status: restroomStatusSchema,
+  verifyCount: z.number().int().nonnegative(),
+  floorArea: z.string().nullable(),
+  restroomLabel: z.string().nullable(),
+  placeId: z.string(),
+  formattedAddress: z.string().nullable(),
+  lat: z.number(),
+  lng: z.number(),
+  bidetType: bidetTypeSchema,
+  hasTissue: z.boolean(),
+  hasSoap: z.boolean(),
+  hasHandDrying: z.boolean(),
+  accessCost: accessCostSchema,
+  accessScope: accessScopeSchema,
+});
+
 export type BidetType = z.infer<typeof bidetTypeSchema>;
 export type AccessCost = z.infer<typeof accessCostSchema>;
 export type AccessScope = z.infer<typeof accessScopeSchema>;
@@ -319,5 +339,6 @@ export type AdminMergeInput = z.infer<typeof adminMergeInputSchema>;
 export type AdminRemovePhotoInput = z.infer<typeof adminRemovePhotoInputSchema>;
 export type MyContribution = z.infer<typeof myContributionSchema>;
 export type OpenReport = z.infer<typeof openReportSchema>;
+export type AdminRestroomSummary = z.infer<typeof adminRestroomSummarySchema>;
 export type LatLng = z.infer<typeof latLngSchema>;
 export type PhotoUpload = z.infer<typeof photoUploadSchema>;

@@ -4,9 +4,9 @@
 
 **Blocked by:** 18 — `/admin` layout, role gate, and left nav; 16 — `adminUpsertRestroom` + `adminSetStatus` + `adminRemovePhoto`
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Admin sees a list of restrooms with key fields (name, status, verify count)
-- [ ] Admin can create a new seeded listing via the form
-- [ ] Admin can edit an existing listing's fields and save
-- [ ] Changes persist via `adminUpsertRestroom`
+- [x] Admin sees a list of restrooms with key fields (name, status, verify count)
+- [x] Admin can create a new seeded listing via the form
+- [x] Admin can edit an existing listing's fields and save
+- [x] Changes persist via `adminUpsertRestroom`
