@@ -4,8 +4,8 @@
 
 **Blocked by:** 03 — Supabase project, PostGIS, enums, profiles + establishments
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] All six tables created with indexes and UNIQUE constraints per DATA_ARCHITECTURE
-- [ ] RLS enabled on every table with policies matching the auth model
-- [ ] Verify-count and rating-aggregate triggers fire correctly on insert/update/delete
+- [x] All six tables created with indexes and UNIQUE constraints per DATA_ARCHITECTURE
+- [x] RLS enabled on every table with policies matching the auth model
+- [x] Verify-count and rating-aggregate triggers fire correctly on insert/update/delete
