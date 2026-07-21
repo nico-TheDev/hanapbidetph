@@ -4,9 +4,9 @@
 
 **Blocked by:** 31 — Reviews feed on detail (read-only); 13 — `upsertReview` with photos; 09 — Return-to-interrupted-flow and auth-gate utility
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Anonymous user is auth-gated before showing submit
-- [ ] New review submits stars, checkboxes, comment, and up to 3 photos
-- [ ] Existing review opens form in edit mode with current values
-- [ ] After submit, review appears at top of feed and rating summary updates
+- [x] Anonymous user is auth-gated before showing submit
+- [x] New review submits stars, checkboxes, comment, and up to 3 photos
+- [x] Existing review opens form in edit mode with current values
+- [x] After submit, review appears at top of feed and rating summary updates

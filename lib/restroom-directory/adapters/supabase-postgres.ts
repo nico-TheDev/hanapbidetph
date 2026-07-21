@@ -38,11 +38,24 @@ import {
   isCommunityVerified,
 } from "@/lib/restroom-directory/pin-variant";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseJsClient } from "@supabase/supabase-js";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
 function notImplemented(method: string): never {
   throw new Error(`PostgresPort.${method} is not implemented for admin listings`);
+}
+
+/** Service-role client for author soft-remove of review photos (RLS is admin-only). */
+function createServiceRoleClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    return null;
+  }
+  return createSupabaseJsClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
 type EstablishmentRow = {
@@ -256,6 +269,101 @@ export function createSupabasePostgres(): PostgresPort {
         .is("removed_at", null)
         .order("sort_order", { ascending: true });
 
+      const { data: reviewRows } = await supabase
+        .from("reviews")
+        .select(
+          "id, restroom_id, user_id, stars, comment, cleanliness_ok, amenities_ok, access_ok, created_at, updated_at",
+        )
+        .eq("restroom_id", id)
+        .order("created_at", { ascending: false });
+
+      const reviewList = (reviewRows ?? []) as Array<{
+        id: string;
+        restroom_id: string;
+        user_id: string;
+        stars: number;
+        comment: string | null;
+        cleanliness_ok: boolean | null;
+        amenities_ok: boolean | null;
+        access_ok: boolean | null;
+        created_at: string;
+        updated_at: string;
+      }>;
+
+      const authorIds = [...new Set(reviewList.map((r) => r.user_id))];
+      const { data: profileRows } =
+        authorIds.length > 0
+          ? await supabase
+              .from("profiles")
+              .select("id, display_name, avatar_url")
+              .in("id", authorIds)
+          : { data: [] as Array<{
+              id: string;
+              display_name: string;
+              avatar_url: string | null;
+            }> };
+
+      const profilesById = new Map(
+        ((profileRows ?? []) as Array<{
+          id: string;
+          display_name: string;
+          avatar_url: string | null;
+        }>).map((p) => [p.id, p]),
+      );
+
+      const reviewIds = reviewList.map((r) => r.id);
+      const { data: reviewPhotoRows } =
+        reviewIds.length > 0
+          ? await supabase
+              .from("review_photos")
+              .select("id, review_id, storage_path, sort_order")
+              .in("review_id", reviewIds)
+              .is("removed_at", null)
+              .order("sort_order", { ascending: true })
+          : { data: [] as Array<{
+              id: string;
+              review_id: string;
+              storage_path: string;
+              sort_order: number;
+            }> };
+
+      const photosByReview = new Map<string, StoredPhotoRow[]>();
+      for (const photo of (reviewPhotoRows ?? []) as Array<{
+        id: string;
+        review_id: string;
+        storage_path: string;
+        sort_order: number;
+      }>) {
+        const list = photosByReview.get(photo.review_id) ?? [];
+        list.push({
+          id: photo.id,
+          storagePath: photo.storage_path,
+          sortOrder: photo.sort_order,
+        });
+        photosByReview.set(photo.review_id, list);
+      }
+
+      const reviews = reviewList.map((rev) => {
+        const profile = profilesById.get(rev.user_id);
+        return {
+          id: rev.id,
+          restroomId: rev.restroom_id,
+          stars: rev.stars,
+          comment: rev.comment,
+          cleanlinessOk: rev.cleanliness_ok,
+          amenitiesOk: rev.amenities_ok,
+          accessOk: rev.access_ok,
+          createdAt: rev.created_at,
+          updatedAt: rev.updated_at,
+          author: {
+            userId: rev.user_id,
+            displayName: profile?.display_name ?? "Unknown",
+            avatarUrl: profile?.avatar_url ?? null,
+          },
+          photos: photosByReview.get(rev.id) ?? [],
+        };
+      });
+
       return {
         id: row.id,
         establishment: toEstablishment(establishment as EstablishmentRow),
@@ -277,7 +385,7 @@ export function createSupabasePostgres(): PostgresPort {
           storagePath: p.storage_path,
           sortOrder: p.sort_order,
         })),
-        reviews: [],
+        reviews,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };
@@ -435,19 +543,121 @@ export function createSupabasePostgres(): PostgresPort {
     },
 
     async upsertReview(
-      _input: UpsertReviewPortInput,
+      input: UpsertReviewPortInput,
     ): Promise<UpsertReviewOutcome> {
-      notImplemented("upsertReview");
+      const supabase = await db();
+
+      const { data: restroom, error: restroomError } = await supabase
+        .from("restrooms")
+        .select("id, status")
+        .eq("id", input.restroomId)
+        .maybeSingle();
+
+      if (restroomError || !restroom) {
+        return { status: "not_found" };
+      }
+
+      const row = restroom as Pick<RestroomRow, "id" | "status">;
+      if (row.status === "archived") {
+        return { status: "not_found" };
+      }
+
+      const { data: existing } = await supabase
+        .from("reviews")
+        .select("id")
+        .eq("restroom_id", input.restroomId)
+        .eq("user_id", input.userId)
+        .maybeSingle();
+
+      const existingId =
+        existing && typeof (existing as { id?: string }).id === "string"
+          ? (existing as { id: string }).id
+          : null;
+
+      if (existingId) {
+        const { error: updateError } = await supabase
+          .from("reviews")
+          .update({
+            stars: input.stars,
+            comment: input.comment,
+            cleanliness_ok: input.cleanlinessOk,
+            amenities_ok: input.amenitiesOk,
+            access_ok: input.accessOk,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingId);
+
+        if (updateError) {
+          throw updateError;
+        }
+        return { status: "upserted", reviewId: existingId };
+      }
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("reviews")
+        .insert({
+          restroom_id: input.restroomId,
+          user_id: input.userId,
+          stars: input.stars,
+          comment: input.comment,
+          cleanliness_ok: input.cleanlinessOk,
+          amenities_ok: input.amenitiesOk,
+          access_ok: input.accessOk,
+        })
+        .select("id")
+        .single();
+
+      if (insertError || !inserted) {
+        throw insertError ?? new Error("Failed to insert review");
+      }
+
+      return {
+        status: "upserted",
+        reviewId: (inserted as { id: string }).id,
+      };
     },
 
     async createReviewPhoto(
-      _input: CreateReviewPhotoInput,
+      input: CreateReviewPhotoInput,
     ): Promise<StoredPhotoRow> {
-      notImplemented("createReviewPhoto");
+      const supabase = await db();
+      const { data, error } = await supabase
+        .from("review_photos")
+        .insert({
+          id: input.id,
+          review_id: input.reviewId,
+          storage_path: input.storagePath,
+          sort_order: input.sortOrder,
+        })
+        .select("id, storage_path, sort_order")
+        .single();
+
+      if (error || !data) {
+        throw new Error(error?.message ?? "Failed to create review photo");
+      }
+      const row = data as PhotoRow;
+      return {
+        id: row.id,
+        storagePath: row.storage_path,
+        sortOrder: row.sort_order,
+      };
     },
 
-    async softRemoveReviewPhotos(_reviewId: string): Promise<void> {
-      notImplemented("softRemoveReviewPhotos");
+    async softRemoveReviewPhotos(reviewId: string): Promise<void> {
+      // review_photos UPDATE RLS is admin-only; use service role when available
+      // so authors can replace photos on upsertReview.
+      const service = createServiceRoleClient();
+      const supabase = service ?? (await db());
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from("review_photos")
+        .update({ removed_at: now })
+        .eq("review_id", reviewId)
+        .is("removed_at", null);
+
+      if (error) {
+        throw error;
+      }
     },
 
     async insertReport(

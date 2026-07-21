@@ -3,10 +3,11 @@ import type {
   StoragePort,
   UploadObjectInput,
 } from "../ports/storage";
+import { createClient } from "@/lib/supabase/server";
 
 /**
- * Read-oriented Supabase Storage adapter for public photo URLs.
- * Upload/remove are not used by Explore detail reads.
+ * Supabase Storage adapter: public URL reads + authenticated uploads.
+ * Soft-delete of photo rows stays in Postgres (`removed_at`); no storage DELETE.
  */
 export function createSupabaseStorage(
   supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
@@ -14,8 +15,20 @@ export function createSupabaseStorage(
   const base = supabaseUrl.replace(/\/$/, "");
 
   return {
-    async upload(_input: UploadObjectInput): Promise<{ path: string }> {
-      throw new Error("SupabaseStorage.upload is not implemented for Explore");
+    async upload(input: UploadObjectInput): Promise<{ path: string }> {
+      const supabase = await createClient();
+      const { error } = await supabase.storage
+        .from(input.bucket)
+        .upload(input.path, input.data, {
+          contentType: input.contentType,
+          upsert: true,
+        });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return { path: input.path };
     },
 
     getPublicUrl(bucket: StorageBucket, path: string): string {
@@ -26,7 +39,9 @@ export function createSupabaseStorage(
     },
 
     async remove(_bucket: StorageBucket, _path: string): Promise<void> {
-      throw new Error("SupabaseStorage.remove is not implemented for Explore");
+      throw new Error(
+        "SupabaseStorage.remove is not used — soft-delete via photo removed_at",
+      );
     },
   };
 }

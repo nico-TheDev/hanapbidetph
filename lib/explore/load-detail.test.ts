@@ -128,6 +128,7 @@ describe("30 — loadRestroomDetailAction", () => {
     expect(result.detail.communityVerified).toBe(true);
     expect(result.detail.photos).toHaveLength(1);
     expect(result.siblings.map((s) => s.id)).toEqual([ID.sibling]);
+    expect(result.viewer).toBeNull();
 
     const view = toDetailContentView({
       detail: result.detail,

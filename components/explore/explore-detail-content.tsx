@@ -16,6 +16,14 @@ import {
   type MapsPlatform,
 } from "@/lib/explore/detail-content";
 import {
+  RATE_ERROR_COPY,
+  applyReviewUpsertToDetail,
+  shouldOpenRateForm,
+  toRateFormView,
+  type RateFormValues,
+  type RateFormView,
+} from "@/lib/explore/detail-rate";
+import {
   toReviewsFeedView,
   type ReviewsFeedView,
 } from "@/lib/explore/detail-reviews";
@@ -26,11 +34,19 @@ import {
   toVerifyCtaView,
   type VerifyCtaView,
 } from "@/lib/explore/detail-verify";
+import {
+  MAX_REVIEW_PHOTOS,
+  compressReviewPhotoFile,
+  encodePhotoUploads,
+  limitReviewPhotos,
+} from "@/lib/explore/compress-review-photo";
 import { loadRestroomDetailAction } from "@/lib/explore/load-detail-action";
+import { upsertReviewAction } from "@/lib/explore/upsert-review-action";
 import { verifyRestroomAction } from "@/lib/explore/verify-restroom-action";
 import type {
   NearbyRestroom,
   RestroomDetail,
+  Review,
   SiblingRestroom,
 } from "@/lib/restroom-directory/schemas";
 import { cn } from "@/lib/utils";
@@ -40,7 +56,7 @@ type ExploreDetailContentProps = {
   nearby?: NearbyRestroom;
   distancesAvailable: boolean;
   isSignedIn?: boolean;
-  /** OAuth / deep-link resume: `action=verify` auto-submits once signed in. */
+  /** OAuth / deep-link resume: `action=verify` auto-submits; `action=rate` opens form. */
   resumeAction?: string | null;
   onSelectSibling: (siblingId: string) => void;
   className?: string;
@@ -52,6 +68,17 @@ type TrustState = {
   viewerHasVerified: boolean;
 };
 
+type RatingState = {
+  ratingAvg: number | null;
+  ratingCount: number;
+  reviews: Review[];
+};
+
+type ViewerState = {
+  userId: string;
+  displayName: string;
+} | null;
+
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
@@ -62,9 +89,17 @@ type LoadState =
       mapsPlatform: MapsPlatform;
     };
 
+const EMPTY_DRAFT: RateFormValues = {
+  stars: null,
+  comment: "",
+  cleanlinessOk: null,
+  amenitiesOk: null,
+  accessOk: null,
+};
+
 /**
  * Listing detail body: amenities, trust, photos, siblings, Maps handoff,
- * read-only reviews (ticket 31), and Verify CTA (ticket 32).
+ * reviews feed (31), Verify CTA (32), and Rate form (33).
  */
 export function ExploreDetailContent({
   listingId,
@@ -78,16 +113,32 @@ export function ExploreDetailContent({
   const router = useRouter();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [trust, setTrust] = useState<TrustState | null>(null);
+  const [rating, setRating] = useState<RatingState | null>(null);
+  const [viewer, setViewer] = useState<ViewerState>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [verifyPending, setVerifyPending] = useState(false);
   const [autoVerifyDone, setAutoVerifyDone] = useState(false);
+  const [rateOpen, setRateOpen] = useState(false);
+  const [rateError, setRateError] = useState<string | null>(null);
+  const [ratePending, setRatePending] = useState(false);
+  const [rateDraft, setRateDraft] = useState<RateFormValues>(EMPTY_DRAFT);
+  const [ratePhotoFiles, setRatePhotoFiles] = useState<File[]>([]);
+  const [rateOpenedFromResume, setRateOpenedFromResume] = useState(false);
 
   const load = useEffectEvent(async (id: string) => {
     setState({ status: "loading" });
     setTrust(null);
+    setRating(null);
+    setViewer(null);
     setVerifyError(null);
     setVerifyPending(false);
     setAutoVerifyDone(false);
+    setRateOpen(false);
+    setRateError(null);
+    setRatePending(false);
+    setRateDraft(EMPTY_DRAFT);
+    setRatePhotoFiles([]);
+    setRateOpenedFromResume(false);
     const result = await loadRestroomDetailAction(id);
     if (!result.ok) {
       setState({
@@ -110,6 +161,12 @@ export function ExploreDetailContent({
       communityVerified: result.detail.communityVerified,
       viewerHasVerified: false,
     });
+    setRating({
+      ratingAvg: result.detail.ratingAvg,
+      ratingCount: result.detail.ratingCount,
+      reviews: result.detail.reviews,
+    });
+    setViewer(result.viewer);
     setState({
       status: "ready",
       detail: result.detail,
@@ -139,6 +196,77 @@ export function ExploreDetailContent({
     }
   });
 
+  const openRateForm = useEffectEvent((seed: RateFormValues) => {
+    setRateDraft(seed);
+    setRatePhotoFiles([]);
+    setRateError(null);
+    setRateOpen(true);
+  });
+
+  const runRateSubmit = useEffectEvent(async (id: string) => {
+    if (rateDraft.stars === null) {
+      setRateError("Choose a star rating from 1 to 5.");
+      return;
+    }
+
+    setRatePending(true);
+    setRateError(null);
+
+    let photos: Array<{ base64: string; contentType: string }> = [];
+    try {
+      const limited = limitReviewPhotos(ratePhotoFiles);
+      const compressed = await Promise.all(
+        limited.map((file) => compressReviewPhotoFile(file)),
+      );
+      photos = encodePhotoUploads(compressed);
+    } catch {
+      setRatePending(false);
+      setRateError(RATE_ERROR_COPY);
+      return;
+    }
+
+    const result = await upsertReviewAction({
+      restroomId: id,
+      stars: rateDraft.stars,
+      comment: rateDraft.comment.trim() ? rateDraft.comment.trim() : null,
+      cleanlinessOk: rateDraft.cleanlinessOk,
+      amenitiesOk: rateDraft.amenitiesOk,
+      accessOk: rateDraft.accessOk,
+      photos,
+    });
+    setRatePending(false);
+
+    if (!result.ok) {
+      if (result.error === "unauthenticated" && result.loginHref) {
+        router.push(result.loginHref);
+        return;
+      }
+      setRateError(result.message || RATE_ERROR_COPY);
+      return;
+    }
+
+    setRating((current) => {
+      const base = current ?? {
+        ratingAvg: null,
+        ratingCount: 0,
+        reviews: [],
+      };
+      return applyReviewUpsertToDetail({
+        reviews: base.reviews,
+        ratingAvg: base.ratingAvg,
+        ratingCount: base.ratingCount,
+        review: result.review,
+        ratingAvgAfter: result.ratingAvg,
+        ratingCountAfter: result.ratingCount,
+      });
+    });
+    setRateOpen(false);
+    setRatePhotoFiles([]);
+    if (shouldOpenRateForm(resumeAction)) {
+      router.replace(`/restrooms/${id}`);
+    }
+  });
+
   useEffect(() => {
     void load(listingId);
   }, [listingId]);
@@ -163,6 +291,32 @@ export function ExploreDetailContent({
     resumeAction,
     autoVerifyDone,
     listingId,
+  ]);
+
+  useEffect(() => {
+    if (state.status !== "ready" || !rating) {
+      return;
+    }
+    if (!isSignedIn || !shouldOpenRateForm(resumeAction) || rateOpenedFromResume) {
+      return;
+    }
+    const rateView = toRateFormView({
+      listingId,
+      isSignedIn,
+      viewerUserId: viewer?.userId ?? null,
+      reviews: rating.reviews,
+      open: false,
+    });
+    setRateOpenedFromResume(true);
+    openRateForm(rateView.values);
+  }, [
+    state.status,
+    rating,
+    isSignedIn,
+    resumeAction,
+    rateOpenedFromResume,
+    listingId,
+    viewer,
   ]);
 
   if (state.status === "loading") {
@@ -199,12 +353,20 @@ export function ExploreDetailContent({
     communityVerified: state.detail.communityVerified,
     viewerHasVerified: false,
   };
+  const ratingState = rating ?? {
+    ratingAvg: state.detail.ratingAvg,
+    ratingCount: state.detail.ratingCount,
+    reviews: state.detail.reviews,
+  };
 
   const view = toDetailContentView({
     detail: {
       ...state.detail,
       verifyCount: trustState.verifyCount,
       communityVerified: trustState.communityVerified,
+      ratingAvg: ratingState.ratingAvg,
+      ratingCount: ratingState.ratingCount,
+      reviews: ratingState.reviews,
     },
     siblings: state.siblings,
     nearby,
@@ -212,7 +374,7 @@ export function ExploreDetailContent({
     mapsPlatform: state.mapsPlatform,
   });
   const reviews = toReviewsFeedView({
-    reviews: state.detail.reviews,
+    reviews: ratingState.reviews,
     listingId: state.detail.id,
     isSignedIn,
   });
@@ -225,14 +387,35 @@ export function ExploreDetailContent({
     errorMessage: verifyError,
     pending: verifyPending,
   });
+  const rate = toRateFormView({
+    listingId: state.detail.id,
+    isSignedIn,
+    viewerUserId: viewer?.userId ?? null,
+    reviews: ratingState.reviews,
+    open: rateOpen,
+    attributionDisplayName: viewer?.displayName ?? null,
+    errorMessage: rateError,
+    pending: ratePending,
+  });
 
   return (
     <DetailContentBody
       view={view}
       reviews={reviews}
       verify={verify}
+      rate={rate}
+      rateDraft={rateDraft}
+      ratePhotoCount={ratePhotoFiles.length}
       onSelectSibling={onSelectSibling}
       onVerify={() => void runVerify(listingId, false)}
+      onOpenRate={() => openRateForm(rate.values)}
+      onCloseRate={() => {
+        setRateOpen(false);
+        setRateError(null);
+      }}
+      onRateDraftChange={setRateDraft}
+      onRatePhotosChange={setRatePhotoFiles}
+      onRateSubmit={() => void runRateSubmit(listingId)}
       className={className}
     />
   );
@@ -242,15 +425,31 @@ function DetailContentBody({
   view,
   reviews,
   verify,
+  rate,
+  rateDraft,
+  ratePhotoCount,
   onSelectSibling,
   onVerify,
+  onOpenRate,
+  onCloseRate,
+  onRateDraftChange,
+  onRatePhotosChange,
+  onRateSubmit,
   className,
 }: {
   view: DetailContentView;
   reviews: ReviewsFeedView;
   verify: VerifyCtaView;
+  rate: RateFormView;
+  rateDraft: RateFormValues;
+  ratePhotoCount: number;
   onSelectSibling: (siblingId: string) => void;
   onVerify: () => void;
+  onOpenRate: () => void;
+  onCloseRate: () => void;
+  onRateDraftChange: (next: RateFormValues) => void;
+  onRatePhotosChange: (files: File[]) => void;
+  onRateSubmit: () => void;
   className?: string;
 }) {
   return (
@@ -371,6 +570,17 @@ function DetailContentBody({
       </a>
 
       <DetailVerifyCta verify={verify} onVerify={onVerify} />
+
+      <DetailRateForm
+        rate={rate}
+        draft={rateDraft}
+        photoCount={ratePhotoCount}
+        onOpen={onOpenRate}
+        onClose={onCloseRate}
+        onDraftChange={onRateDraftChange}
+        onPhotosChange={onRatePhotosChange}
+        onSubmit={onRateSubmit}
+      />
 
       {view.siblings.length > 0 ? (
         <section data-explore="detail-siblings" className="flex flex-col gap-2">
@@ -494,6 +704,267 @@ function DetailVerifyCta({
             Retry
           </button>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+function cycleTriState(value: boolean | null): boolean | null {
+  if (value === null) return true;
+  if (value === true) return false;
+  return null;
+}
+
+function triStateLabel(value: boolean | null, okLabel: string): string {
+  if (value === true) return okLabel;
+  if (value === false) return `${okLabel} needs work`;
+  return `${okLabel}: skip`;
+}
+
+function DetailRateForm({
+  rate,
+  draft,
+  photoCount,
+  onOpen,
+  onClose,
+  onDraftChange,
+  onPhotosChange,
+  onSubmit,
+}: {
+  rate: RateFormView;
+  draft: RateFormValues;
+  photoCount: number;
+  onOpen: () => void;
+  onClose: () => void;
+  onDraftChange: (next: RateFormValues) => void;
+  onPhotosChange: (files: File[]) => void;
+  onSubmit: () => void;
+}) {
+  const buttonClass = cn(
+    "inline-flex h-11 w-full items-center justify-center rounded-lg border text-sm font-semibold transition-colors",
+    "border-border bg-background text-foreground hover:bg-secondary/70",
+  );
+
+  return (
+    <div data-explore="detail-rate" className="flex flex-col gap-2">
+      {rate.mode === "gated" && rate.loginHref ? (
+        <Link
+          href={rate.loginHref}
+          data-explore="detail-rate-cta"
+          data-rate-mode="gated"
+          className={buttonClass}
+        >
+          {rate.ctaLabel}
+        </Link>
+      ) : !rate.formVisible ? (
+        <button
+          type="button"
+          data-explore="detail-rate-cta"
+          data-rate-mode={rate.mode}
+          className={buttonClass}
+          onClick={onOpen}
+        >
+          {rate.ctaLabel}
+        </button>
+      ) : null}
+
+      {rate.formVisible ? (
+        <form
+          data-explore="detail-rate-form"
+          data-rate-mode={rate.mode}
+          className="border-border/70 bg-secondary/40 flex flex-col gap-3 rounded-xl border p-3.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="font-heading text-sm font-semibold tracking-tight">
+              {rate.formTitle}
+            </h3>
+            <button
+              type="button"
+              data-explore="detail-rate-cancel"
+              className="text-muted-foreground text-sm font-medium underline-offset-2 hover:underline"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+          </div>
+
+          {rate.attributionPreview ? (
+            <p
+              data-explore="detail-rate-attribution"
+              className="text-muted-foreground text-sm"
+            >
+              {rate.attributionPreview}
+            </p>
+          ) : null}
+
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-foreground text-sm font-medium">
+              Stars
+            </legend>
+            <div
+              data-explore="detail-rate-stars"
+              className="flex flex-wrap gap-1.5"
+              role="radiogroup"
+              aria-label="Star rating"
+            >
+              {[1, 2, 3, 4, 5].map((star) => {
+                const selected = draft.stars === star;
+                return (
+                  <button
+                    key={star}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    data-star={star}
+                    className={cn(
+                      "inline-flex size-10 items-center justify-center rounded-lg text-sm font-semibold transition-colors",
+                      selected
+                        ? "bg-[#006767] text-white"
+                        : "bg-background text-foreground border-border border",
+                    )}
+                    onClick={() =>
+                      onDraftChange({ ...draft, stars: star })
+                    }
+                  >
+                    {star}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["cleanlinessOk", "Cleanliness"],
+                ["amenitiesOk", "Amenities"],
+                ["accessOk", "Access"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                data-explore="detail-rate-checkbox"
+                data-checkbox={key}
+                data-value={
+                  draft[key] === null
+                    ? "skip"
+                    : draft[key]
+                      ? "ok"
+                      : "needs_work"
+                }
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  draft[key] === true
+                    ? "bg-[#d0e7e9] text-[#006767]"
+                    : draft[key] === false
+                      ? "bg-secondary text-muted-foreground"
+                      : "border-border bg-background text-muted-foreground border",
+                )}
+                onClick={() =>
+                  onDraftChange({
+                    ...draft,
+                    [key]: cycleTriState(draft[key]),
+                  })
+                }
+              >
+                {triStateLabel(draft[key], label)}
+              </button>
+            ))}
+          </div>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-foreground text-sm font-medium">
+              Comment (optional)
+            </span>
+            <textarea
+              data-explore="detail-rate-comment"
+              value={draft.comment}
+              rows={3}
+              className="border-border bg-background text-foreground rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-[#006767]/35"
+              onChange={(event) =>
+                onDraftChange({ ...draft, comment: event.target.value })
+              }
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-foreground text-sm font-medium">
+              Photos (optional, max {MAX_REVIEW_PHOTOS})
+            </span>
+            {rate.existingPhotos.length > 0 && photoCount === 0 ? (
+              <ul
+                data-explore="detail-rate-existing-photos"
+                className="flex gap-2 overflow-x-auto pb-0.5"
+              >
+                {rate.existingPhotos.map((photo) => (
+                  <li
+                    key={photo.id}
+                    className="bg-secondary relative h-16 w-20 shrink-0 overflow-hidden rounded-lg"
+                  >
+                    <Image
+                      src={photo.publicUrl}
+                      alt=""
+                      fill
+                      unoptimized
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <input
+              data-explore="detail-rate-photos"
+              type="file"
+              accept="image/*"
+              multiple
+              className="text-muted-foreground text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-[#d0e7e9] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#006767]"
+              onChange={(event) => {
+                const files = limitReviewPhotos(
+                  Array.from(event.target.files ?? []),
+                );
+                onPhotosChange(files);
+              }}
+            />
+            {photoCount > 0 ? (
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {photoCount} selected (compressed on submit)
+              </span>
+            ) : null}
+          </label>
+
+          <button
+            type="submit"
+            data-explore="detail-rate-submit"
+            className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-gradient-to-r from-[#006767] to-[#008282] text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={!rate.canSubmit}
+          >
+            {rate.submitLabel}
+          </button>
+
+          {rate.showRetry && rate.errorMessage ? (
+            <div
+              data-explore="detail-rate-error"
+              className="flex flex-col gap-1"
+              role="alert"
+            >
+              <p className="text-destructive text-sm">{rate.errorMessage}</p>
+              <button
+                type="button"
+                data-explore="detail-rate-retry"
+                className="text-primary self-start text-sm font-medium underline-offset-2 hover:underline"
+                onClick={onSubmit}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+        </form>
       ) : null}
     </div>
   );

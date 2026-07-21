@@ -9,7 +9,7 @@ type RestroomDetailPageProps = {
 
 /**
  * Deep-link / OAuth return target for listing detail.
- * `?action=verify` resumes the interrupted Verify CTA (ticket 32).
+ * `?action=verify` resumes Verify (ticket 32); `?action=rate` opens the rate form (ticket 33).
  */
 export default async function RestroomDetailPage({
   params,
