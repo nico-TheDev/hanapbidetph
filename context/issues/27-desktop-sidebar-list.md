@@ -4,9 +4,9 @@
 
 **Blocked by:** 25 — Radius selector wired to `listNearby`; 26 — Filter chips wired to `listNearby`
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Desktop layout shows scrollable sidebar list beside the map
-- [ ] Each row shows establishment name, distance (when location known), and bidet/verified indicators
-- [ ] Clicking a row selects the listing and highlights the corresponding map pin
-- [ ] List updates when radius or filters change
+- [x] Desktop layout shows scrollable sidebar list beside the map
+- [x] Each row shows establishment name, distance (when location known), and bidet/verified indicators
+- [x] Clicking a row selects the listing and highlights the corresponding map pin
+- [x] List updates when radius or filters change

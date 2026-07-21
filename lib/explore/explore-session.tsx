@@ -19,6 +19,11 @@ import {
 } from "@/lib/explore/radius";
 import type { NearbyRestroom } from "@/lib/restroom-directory/schemas";
 
+type SelectedIdUpdater =
+  | string
+  | null
+  | ((prev: string | null) => string | null);
+
 type ExploreSessionValue = {
   radiusMeters: RadiusStepMeters;
   setRadiusMeters: (meters: RadiusStepMeters) => void;
@@ -28,11 +33,13 @@ type ExploreSessionValue = {
   setListings: (listings: NearbyRestroom[]) => void;
   distancesAvailable: boolean;
   setDistancesAvailable: (available: boolean) => void;
+  selectedId: string | null;
+  setSelectedId: (next: SelectedIdUpdater) => void;
 };
 
 const ExploreSessionContext = createContext<ExploreSessionValue | null>(null);
 
-/** Shared Explore radius, filters, and nearby listings for top bar, map, sidebar. */
+/** Shared Explore radius, filters, listings, and selection for top bar, map, sidebar. */
 export function ExploreSessionProvider({ children }: { children: ReactNode }) {
   const [radiusMeters, setRadiusMeters] = useState<RadiusStepMeters>(
     DEFAULT_NEARBY_RADIUS_METERS,
@@ -42,6 +49,7 @@ export function ExploreSessionProvider({ children }: { children: ReactNode }) {
   );
   const [listings, setListings] = useState<NearbyRestroom[]>([]);
   const [distancesAvailable, setDistancesAvailable] = useState(false);
+  const [selectedId, setSelectedIdState] = useState<string | null>(null);
 
   return (
     <ExploreSessionContext.Provider
@@ -56,6 +64,12 @@ export function ExploreSessionProvider({ children }: { children: ReactNode }) {
         setListings,
         distancesAvailable,
         setDistancesAvailable,
+        selectedId,
+        setSelectedId: (next) => {
+          setSelectedIdState((prev) =>
+            typeof next === "function" ? next(prev) : next,
+          );
+        },
       }}
     >
       {children}

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import type { NearbyRestroom } from "@/lib/restroom-directory/schemas";
-
 import {
   DEFAULT_NEARBY_RADIUS_METERS,
   MAX_NEARBY_RADIUS_METERS,
@@ -9,43 +7,7 @@ import {
   RADIUS_STEPS_METERS,
   formatListingDistance,
   formatRadiusLabel,
-  toNearbyListRows,
 } from "./radius";
-
-const NEARBY: NearbyRestroom = {
-  id: "11111111-1111-4111-8111-111111111111",
-  establishmentId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-  name: "SM Aura CR",
-  lat: 14.5547,
-  lng: 121.0244,
-  distanceMeters: 50,
-  bidetType: "manual_spray",
-  hasBidet: true,
-  accessCost: "free",
-  accessScope: "public",
-  verifyCount: 3,
-  communityVerified: true,
-  ratingAvg: 4.5,
-  ratingCount: 2,
-  pinVariant: "bidet",
-  floorArea: null,
-  restroomLabel: null,
-};
-
-const FARTHER: NearbyRestroom = {
-  ...NEARBY,
-  id: "22222222-2222-4222-8222-222222222222",
-  establishmentId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-  name: "BGC High Street CR",
-  distanceMeters: 1500,
-  pinVariant: "standard",
-  hasBidet: false,
-  bidetType: "none",
-  verifyCount: 0,
-  communityVerified: false,
-  ratingAvg: null,
-  ratingCount: 0,
-};
 
 describe("25 — radius selector wired to listNearby", () => {
   it("exposes 0.5 / 1 / 2 / 5 km steps with default 1 km and max 5 km", () => {
@@ -77,34 +39,5 @@ describe("25 — radius selector wired to listNearby", () => {
     expect(formatListingDistance(1500, true)).toBe("1.5 km");
     expect(formatListingDistance(50, false)).toBeNull();
     expect(formatListingDistance(1500, false)).toBeNull();
-  });
-
-  it("builds sidebar listing rows with distance when location is known", () => {
-    const withDistance = toNearbyListRows([NEARBY, FARTHER], {
-      distancesAvailable: true,
-    });
-    expect(withDistance).toEqual([
-      {
-        id: NEARBY.id,
-        name: NEARBY.name,
-        distanceLabel: "50 m",
-      },
-      {
-        id: FARTHER.id,
-        name: FARTHER.name,
-        distanceLabel: "1.5 km",
-      },
-    ]);
-
-    const withoutDistance = toNearbyListRows([NEARBY, FARTHER], {
-      distancesAvailable: false,
-    });
-    expect(withoutDistance.every((row) => row.distanceLabel === null)).toBe(
-      true,
-    );
-    expect(withoutDistance.map((row) => row.name)).toEqual([
-      NEARBY.name,
-      FARTHER.name,
-    ]);
   });
 });

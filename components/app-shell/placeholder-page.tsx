@@ -13,8 +13,8 @@ export function PlaceholderPage({
   children,
 }: PlaceholderPageProps) {
   return (
-    <main className="flex flex-1 flex-col px-5 py-6 md:px-6 md:py-8">
-      <header className="flex flex-col gap-2">
+    <main className="flex min-h-0 flex-1 flex-col px-5 py-6 md:px-6 md:py-8">
+      <header className="flex shrink-0 flex-col gap-2">
         <p className="font-heading text-primary text-sm font-semibold tracking-wide uppercase">
           HanapBidet PH
         </p>
@@ -25,7 +25,11 @@ export function PlaceholderPage({
           {description}
         </p>
       </header>
-      {children ? <div className="mt-8 flex-1">{children}</div> : null}
+      {children ? (
+        <div className="mt-8 flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {children}
+        </div>
+      ) : null}
     </main>
   );
 }

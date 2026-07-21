@@ -8,7 +8,7 @@ Phase 6 — End-user shell
 
 ## Current Goal
 
-27 — Desktop sidebar list (distance-sorted)
+28 — Explore empty states (no pins / filters hide all / outside coverage)
 
 ## Completed
 
@@ -39,10 +39,9 @@ Phase 6 — End-user shell
 - 24 — Map pins from `listNearby` (bidet / standard / unverified)
 - 25 — Radius selector wired to `listNearby`
 - 26 — Filter chips wired to `listNearby`
+- 27 — Desktop sidebar list (distance-sorted)
 
 ## In Progress
-
-- 27 — Desktop sidebar list (distance-sorted)
 
 ## Next Up
 
@@ -79,6 +78,7 @@ Phase 6 — End-user shell
 - Explore map pins: `listNearby` → AdvancedMarker HTML pins; bidet Fresh Teal `#006767`, standard charcoal `#4f5e67`, Soft Aqua dashed overlay when unverified; tap selects (preview); Supabase `findActiveRestroomsNear` haversine stand-in for soft-launch scale; default radius 1 km
 - Explore radius: top-bar selector steps 0.5 / 1 / 2 / 5 km (default 1 km); `ExploreSession` shares radius + listings with map pins and sidebar rows; distance labels gated on `distancesAvailable`
 - Explore filters: four Soft Aqua / teal chips (Has bidet, Free/Paid cycle, Community verified only, Public/Needs patronage cycle); multi-select → `listNearby` filters; horizontal scroll on mobile; session shares filters with map refetch
+- Explore desktop sidebar: scrollable distance-ordered `listNearby` rows (name, distance when known, bidet + community-verified icons); row click shares `selectedId` with map pin highlight via `ExploreSession`
 
 ## Session Notes
 
@@ -108,3 +108,4 @@ Phase 6 — End-user shell
 - Ticket 24 done: Explore pins from `listNearby` (teal / charcoal / unverified dashed overlay + selected preview); `loadNearbyRestroomsAction` + Supabase nearby adapter; Vitest covers pin appearance, selection sync, and fake `listNearby` → pin models (no live Maps API).
 - Ticket 25 done: Explore top-bar radius selector (0.5 / 1 / 2 / 5 km, default 1 km) refetches `listNearby` and refreshes pins + sidebar rows; distance labels only when location known; Vitest covers steps, distance formatting, and radius widen → farther listings.
 - Ticket 26 done: Explore filter chips (Has bidet, Free/Paid cycle, Community verified only, Public/Needs patronage cycle) Soft Aqua / teal styling, horizontal scroll, multi-select → `listNearby` + pin refresh via `ExploreSession`; Vitest covers chip toggle/cycle → filters and filtered loadNearby pins.
+- Ticket 27 done: Desktop sidebar scrollable nearby list (distance-sorted `listNearby` rows with name, gated distance, bidet/verified icons); row select ↔ map pin highlight via shared `ExploreSession.selectedId`; Vitest covers row model, selection sync, and pin highlight.

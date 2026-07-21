@@ -1,5 +1,3 @@
-import type { NearbyRestroom } from "@/lib/restroom-directory/schemas";
-
 /** Spec steps: 0.5 / 1 / 2 / 5 km (max 5 km). */
 export const RADIUS_STEPS_METERS = [500, 1000, 2000, 5000] as const;
 
@@ -46,25 +44,4 @@ export function formatListingDistance(
   const km = distanceMeters / 1000;
   const rounded = Number.isInteger(km) ? String(km) : km.toFixed(1);
   return `${rounded} km`;
-}
-
-export type NearbyListRow = {
-  id: string;
-  name: string;
-  distanceLabel: string | null;
-};
-
-/** Sidebar listing rows from `listNearby`, with gated distance labels. */
-export function toNearbyListRows(
-  listings: NearbyRestroom[],
-  options: { distancesAvailable: boolean },
-): NearbyListRow[] {
-  return listings.map((listing) => ({
-    id: listing.id,
-    name: listing.name,
-    distanceLabel: formatListingDistance(
-      listing.distanceMeters,
-      options.distancesAvailable,
-    ),
-  }));
 }

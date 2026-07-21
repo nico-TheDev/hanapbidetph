@@ -88,7 +88,9 @@ export function ExploreMap({
     zoom: DEFAULT_EXPLORE_ZOOM,
   });
   const [fetchedListings, setFetchedListings] = useState<NearbyRestroom[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [localSelectedId, setLocalSelectedId] = useState<string | null>(null);
+  const selectedId = session ? session.selectedId : localSelectedId;
+  const setSelectedId = session ? session.setSelectedId : setLocalSelectedId;
 
   const view = resolveMapViewState({
     geolocation: geoResult,
